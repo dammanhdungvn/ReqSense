@@ -4,8 +4,6 @@ import ChatMessage from './ChatMessage';
 import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
 import GapAnalysis from './GapAnalysis';
-import RequirementsTree from './RequirementsTree';
-import ConfirmedFeaturesReport from './ConfirmedFeaturesReport';
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 340;
@@ -156,7 +154,7 @@ export default function ChatWindow({ userProfile }) {
   const [evaluation, setEvaluation] = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [refineMode, setRefineMode] = useState(false);
-  const [rightTab, setRightTab] = useState('tree');
+  const [rightTab, setRightTab] = useState('gaps');
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
@@ -637,12 +635,6 @@ export default function ChatWindow({ userProfile }) {
         {/* Tab bar */}
         <div className="panel-tabs">
           <button
-            className={`panel-tab ${rightTab === 'tree' ? 'panel-tab-active' : ''}`}
-            onClick={() => setRightTab('tree')}
-          >
-            🌳 {interfaceLanguage === 'vi' ? 'Cây yêu cầu' : 'Req. Tree'}
-          </button>
-          <button
             className={`panel-tab ${rightTab === 'gaps' ? 'panel-tab-active' : ''}`}
             onClick={() => setRightTab('gaps')}
           >
@@ -657,21 +649,6 @@ export default function ChatWindow({ userProfile }) {
         </div>
 
         {/* Tab content */}
-        {rightTab === 'tree' && (
-          <div className="live-report-panel">
-            <ConfirmedFeaturesReport
-              features={confirmedFeatures}
-              coveredTopics={coveredTopics}
-              currentTopic={currentTopic}
-              language={interfaceLanguage}
-            />
-            <RequirementsTree
-              coveredTopics={coveredTopics}
-              currentTopic={currentTopic}
-              language={interfaceLanguage}
-            />
-          </div>
-        )}
 
         {rightTab === 'gaps' && (
           <GapAnalysis

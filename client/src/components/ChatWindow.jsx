@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { sendMessage, analyzeGaps, evaluateReport } from '../api';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { sendMessage, analyzeGaps, evaluateReport, uploadDocument } from '../api';
 import ChatMessage from './ChatMessage';
 import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
@@ -86,6 +86,7 @@ export default function ChatWindow({ userProfile }) {
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
+  const fileInputRef = useRef(null);
 
   const exchangeCount = displayMsgs.filter(m => m.role === 'user').length;
   const confidence = useMemo(
@@ -304,6 +305,50 @@ export default function ChatWindow({ userProfile }) {
     document.addEventListener('mouseup', onUp);
   }
 
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    // Show document card in chat immediately
+    const docMsg = { role: 'user', type: 'document', doc: { filename: file.name, format: file.name.split('.').pop().toUpperCase(), wordCount: 0, content: '' } };
+    setDisplayMsgs(prev => [...prev.map(m => ({ ...m, options: null })), docMsg]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const doc = await uploadDocument(file);
+
+      // Update the doc card with real data
+      setDisplayMsgs(prev => prev.map((m, i) =>
+        i === prev.length - 1 && m.type === 'document' ? { ...m, doc } : m
+      ));
+
+      // Build context message for Alex
+      const contextMsg = {
+        role: 'user',
+        text: `[DOCUMENT: ${doc.filename}]\n${doc.content}`,
+      };
+      const newHistory = [...apiHistory, contextMsg];
+
+      const data = await sendMessage(newHistory, false);
+      setApiHistory([...newHistory, { role: 'model', text: toRawJson(data) }]);
+      setDisplayMsgs(prev => [...prev, {
+        role: 'model',
+        text: data.message,
+        options: data.options,
+        topic: data.currentTopic,
+        agentTrace: data.agentTrace,
+      }]);
+      applyBA(data);
+    } catch (err) {
+      setError(err.message || 'Failed to process document.');
+      setDisplayMsgs(prev => prev.slice(0, -1));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -380,11 +425,26 @@ export default function ChatWindow({ userProfile }) {
 
         <div className="chat-footer">
           <div className="input-row">
+            <button
+              className="attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              title="Upload document (PDF, MD, DOCX)"
+            >
+              📎
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.md,.txt,.doc,.docx"
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+            />
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your answer… (Enter to send, Shift+Enter for newline)"
+              placeholder="Type your answer… or 📎 attach a document"
               disabled={loading}
               rows={2}
             />

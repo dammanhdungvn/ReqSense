@@ -4,6 +4,7 @@ import ChatMessage from './ChatMessage';
 import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
 import GapAnalysis from './GapAnalysis';
+import RequirementsTree from './RequirementsTree';
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 340;
@@ -83,6 +84,7 @@ export default function ChatWindow({ userProfile }) {
   const [evaluation, setEvaluation] = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
   const [refineMode, setRefineMode] = useState(false);
+  const [rightTab, setRightTab] = useState('tree');
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
@@ -228,8 +230,14 @@ export default function ChatWindow({ userProfile }) {
   useEffect(() => {
     if (readyForReport && !gapAnalysis && !gapLoading && apiHistory.length > 1) {
       fetchGapAnalysis();
+      setRightTab('gaps');
     }
   }, [readyForReport]);
+
+  // Switch to report tab when report is generated
+  useEffect(() => {
+    if (report) setRightTab('report');
+  }, [report]);
 
   // Auto-scroll
   useEffect(() => {
@@ -463,16 +471,42 @@ export default function ChatWindow({ userProfile }) {
 
       {/* ── Report panel ── */}
       <div className="report-panel">
-        {report ? (
-          <AnalysisResult
-            content={report}
-            meta={reportMeta}
-            evaluation={evaluation}
-            evalLoading={evalLoading}
+        {/* Tab bar */}
+        <div className="panel-tabs">
+          <button
+            className={`panel-tab ${rightTab === 'tree' ? 'panel-tab-active' : ''}`}
+            onClick={() => setRightTab('tree')}
+          >
+            🌳 {userProfile?.language === 'vi' ? 'Cây yêu cầu' : 'Req. Tree'}
+          </button>
+          {readyForReport && (
+            <button
+              className={`panel-tab ${rightTab === 'gaps' ? 'panel-tab-active' : ''}`}
+              onClick={() => setRightTab('gaps')}
+            >
+              🔍 {userProfile?.language === 'vi' ? 'Phân tích' : 'Gap Analysis'}
+            </button>
+          )}
+          {report && (
+            <button
+              className={`panel-tab ${rightTab === 'report' ? 'panel-tab-active' : ''}`}
+              onClick={() => setRightTab('report')}
+            >
+              📄 {userProfile?.language === 'vi' ? 'Báo cáo' : 'Report'}
+            </button>
+          )}
+        </div>
+
+        {/* Tab content */}
+        {rightTab === 'tree' && (
+          <RequirementsTree
+            coveredTopics={coveredTopics}
+            currentTopic={currentTopic}
             language={userProfile?.language}
-            onRefine={handleRefine}
           />
-        ) : readyForReport ? (
+        )}
+
+        {rightTab === 'gaps' && (
           <GapAnalysis
             data={gapAnalysis}
             loading={gapLoading}
@@ -482,13 +516,26 @@ export default function ChatWindow({ userProfile }) {
             isRefineMode={refineMode}
             language={userProfile?.language}
           />
-        ) : (
+        )}
+
+        {rightTab === 'report' && report && (
+          <AnalysisResult
+            content={report}
+            meta={reportMeta}
+            evaluation={evaluation}
+            evalLoading={evalLoading}
+            language={userProfile?.language}
+            onRefine={handleRefine}
+          />
+        )}
+
+        {rightTab === 'report' && !report && (
           <div className="report-empty">
             <h3>Requirements Report</h3>
             <div className="steps">
               <div className="step"><span>1</span>Describe your software idea</div>
               <div className="step"><span>2</span>Answer Alex's questions</div>
-              <div className="step"><span>3</span>Reach 75% confidence</div>
+              <div className="step"><span>3</span>Watch the tree fill up</div>
               <div className="step"><span>4</span>Generate your specification</div>
             </div>
           </div>

@@ -7,8 +7,11 @@
     "server"
   ],
   "scripts": {
-    "build": "npm --prefix client ci --include=dev --include=optional && npm --workspace client run build",
+    "build": "npm --workspace client run build",
     "start": "npm --workspace server start"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.62.2"
   },
   "engines": {
     "node": ">=18"

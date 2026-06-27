@@ -82,6 +82,7 @@ export default function ChatWindow({ userProfile }) {
   const [gapLoading, setGapLoading] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
+  const [refineMode, setRefineMode] = useState(false);
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
@@ -188,6 +189,19 @@ export default function ChatWindow({ userProfile }) {
     startSession();
   }
 
+  async function handleRefine() {
+    setReport(null);
+    setReportMeta(null);
+    setEvaluation(null);
+    setEvalLoading(false);
+    setGapAnalysis(null);
+    setRefineMode(true);
+    const refineText = userProfile?.language === 'vi'
+      ? 'Báo cáo đã được tạo. Tôi muốn bổ sung thêm thông tin để cải thiện nó. Bạn hãy hỏi tôi những gì còn thiếu nhé.'
+      : 'The report has been generated. I want to add more details to improve it. Please ask me about what information is still missing.';
+    await send(refineText);
+  }
+
   async function fetchGapAnalysis() {
     setGapLoading(true);
     try {
@@ -195,6 +209,7 @@ export default function ChatWindow({ userProfile }) {
         apiHistory, coveredTopics, confidence, userProfile?.language ?? 'en'
       );
       setGapAnalysis(data);
+      setRefineMode(false);
     } catch (_) {}
     finally { setGapLoading(false); }
   }
@@ -364,15 +379,6 @@ export default function ChatWindow({ userProfile }) {
         {error && <div className="error-banner">{error}</div>}
 
         <div className="chat-footer">
-          {readyForReport && !report && (
-            <button
-              className="generate-report-btn"
-              onClick={generateReport}
-              disabled={loading}
-            >
-              Generate Full Report
-            </button>
-          )}
           <div className="input-row">
             <textarea
               value={input}
@@ -404,13 +410,16 @@ export default function ChatWindow({ userProfile }) {
             evaluation={evaluation}
             evalLoading={evalLoading}
             language={userProfile?.language}
+            onRefine={handleRefine}
           />
         ) : readyForReport ? (
           <GapAnalysis
             data={gapAnalysis}
             loading={gapLoading}
             onGenerate={generateReport}
-            onAskQuestion={(q) => setInput(q)}
+            onAskQuestion={(q) => send(q)}
+            onReanalyze={fetchGapAnalysis}
+            isRefineMode={refineMode}
             language={userProfile?.language}
           />
         ) : (

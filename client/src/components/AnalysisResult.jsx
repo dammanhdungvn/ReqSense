@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, PenLine } from 'lucide-react';
 import ReportEvaluation from './ReportEvaluation';
 import './AnalysisResult.css';
 
@@ -72,7 +72,7 @@ function MetaCard({ meta }) {
   );
 }
 
-export default function AnalysisResult({ content, meta, evaluation, evalLoading, language }) {
+export default function AnalysisResult({ content, meta, evaluation, evalLoading, language, onRefine }) {
   function downloadMarkdown() {
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -99,6 +99,12 @@ export default function AnalysisResult({ content, meta, evaluation, evalLoading,
             <Printer size={13} />
             <span>Print / PDF</span>
           </button>
+          {onRefine && (
+            <button className="toolbar-btn toolbar-btn-refine" onClick={onRefine}>
+              <PenLine size={13} />
+              <span>{language === 'vi' ? 'Bổ sung & tạo lại' : 'Refine & regenerate'}</span>
+            </button>
+          )}
         </div>
       </div>
 

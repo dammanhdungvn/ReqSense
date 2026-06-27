@@ -16,6 +16,10 @@ const VI = {
   loading: 'Đang phân tích cuộc trò chuyện...',
   suggestedQ: 'Câu hỏi gợi ý:',
   verdict: { ready: '✅ Đã đủ thông tin để tạo báo cáo', 'needs-more': '⚠️ Nên hỏi thêm trước khi tạo báo cáo', 'critical-gaps': '🔴 Còn thiếu thông tin quan trọng' },
+  refineTitle: 'Đang bổ sung thông tin',
+  refineSubtitle: 'Hãy trả lời thêm câu hỏi từ Alex bên trái, rồi bấm "Phân tích lại" để xem độ phủ mới.',
+  reanalyzeBtn: 'Phân tích lại',
+  generateNowBtn: 'Tạo báo cáo ngay',
 };
 
 const EN = {
@@ -27,6 +31,10 @@ const EN = {
   loading: 'Analyzing conversation coverage...',
   suggestedQ: 'Suggested question:',
   verdict: { ready: '✅ Ready to generate report', 'needs-more': '⚠️ Consider asking more before generating', 'critical-gaps': '🔴 Critical information still missing' },
+  refineTitle: 'Adding more information',
+  refineSubtitle: 'Answer Alex\'s follow-up questions on the left, then click "Re-analyze" to see updated coverage.',
+  reanalyzeBtn: 'Re-analyze',
+  generateNowBtn: 'Generate report now',
 };
 
 function ScoreBar({ score }) {
@@ -41,19 +49,40 @@ function ScoreBar({ score }) {
   );
 }
 
-export default function GapAnalysis({ data, loading, onGenerate, onAskQuestion, language }) {
+export default function GapAnalysis({ data, loading, onGenerate, onAskQuestion, onReanalyze, isRefineMode, language }) {
   const t = language === 'vi' ? VI : EN;
 
   if (loading) {
     return (
-      <div className="ga-loading">
-        <div className="ga-spinner" />
-        <p>{t.loading}</p>
+      <div className="gap-analysis">
+        <div className="ga-loading">
+          <div className="ga-spinner" />
+          <p>{t.loading}</p>
+        </div>
       </div>
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    if (!isRefineMode) return null;
+    return (
+      <div className="gap-analysis">
+        <div className="ga-refine-idle">
+          <div className="ga-refine-icon">✏️</div>
+          <h2 className="ga-refine-title">{t.refineTitle}</h2>
+          <p className="ga-refine-subtitle">{t.refineSubtitle}</p>
+          <div className="ga-refine-actions">
+            <button className="ga-reanalyze-btn" onClick={onReanalyze}>
+              🔍 {t.reanalyzeBtn}
+            </button>
+            <button className="ga-generate-btn ga-generate-btn-secondary" onClick={onGenerate}>
+              {t.generateNowBtn}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const { topics = [], criticalGaps = [], verdict, summary } = data;
   const verdictText = t.verdict[verdict] ?? verdict;

@@ -1,4 +1,5 @@
 import ReactMarkdown from 'react-markdown';
+import AgentTrace from './AgentTrace';
 import './ChatMessage.css';
 
 function BadgeText({ children }) {
@@ -50,6 +51,7 @@ export default function ChatMessage({ message }) {
             <span>{message.text}</span>
           )}
         </div>
+        {isModel && <AgentTrace trace={message.agentTrace} />}
       </div>
 
       {!isModel && <div className="msg-avatar user-avatar">You</div>}

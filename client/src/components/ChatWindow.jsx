@@ -12,6 +12,7 @@ const CHAT_MAX = 620;
 const CHAT_DEFAULT = 420;
 
 const STORAGE_KEY = 'reqsense_session';
+const WELCOME_MESSAGE = 'Xin chào, tôi là Alex. Hãy mô tả ngắn gọn ý tưởng phần mềm của bạn, tôi sẽ quyết định khi nào cần dùng agent để phân tích sâu hơn.';
 
 const ROLE_MAP = {
   developer:    { vi: 'Lập trình viên / Kỹ thuật', en: 'Developer / Technical person' },
@@ -46,6 +47,7 @@ function toRawJson(data) {
     coveredTopics: data.coveredTopics,
     options: data.options,
     readyForReport: data.readyForReport,
+    agentTrace: data.agentTrace || [],
   });
 }
 
@@ -79,9 +81,15 @@ export default function ChatWindow({ userProfile }) {
     if (data.readyForReport) setReadyForReport(true);
   }
 
-  async function startSession() {
+  function startSession() {
     setApiHistory([]);
-    setDisplayMsgs([]);
+    setDisplayMsgs([{
+      role: 'model',
+      text: WELCOME_MESSAGE,
+      options: null,
+      topic: 'Project Overview',
+      agentTrace: [],
+    }]);
     setConfidence(0);
     setCoveredTopics([]);
     setCurrentTopic('');
@@ -89,25 +97,7 @@ export default function ChatWindow({ userProfile }) {
     setReport(null);
     setReportMeta(null);
     setError(null);
-    setLoading(true);
-
-    const seedMsg = { role: 'user', text: buildSeedMsg(userProfile) };
-
-    try {
-      const data = await sendMessage([seedMsg], false);
-      setApiHistory([seedMsg, { role: 'model', text: toRawJson(data) }]);
-      setDisplayMsgs([{
-        role: 'model',
-        text: data.message,
-        options: data.options,
-        topic: data.currentTopic,
-      }]);
-      applyBA(data);
-    } catch (err) {
-      setError('Failed to start session. Please check your server and API key, then refresh.');
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   }
 
   async function send(text) {
@@ -134,6 +124,7 @@ export default function ChatWindow({ userProfile }) {
         text: data.message,
         options: data.options,
         topic: data.currentTopic,
+        agentTrace: data.agentTrace,
       }]);
       applyBA(data);
     } catch (err) {

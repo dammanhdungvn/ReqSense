@@ -1,128 +1,166 @@
 # ReqSense
 
-AI Requirements Analyst giúp biến ý tưởng phần mềm ban đầu thành luồng hỏi đáp có cấu trúc, phân tích khoảng trống yêu cầu và tạo báo cáo đặc tả nghiệp vụ rõ ràng hơn.
+ReqSense is an AI Business Analyst that helps users turn an early software idea into structured requirements, gap analysis, and a professional requirement report.
 
-[Live demo](https://reqsense-production.up.railway.app/) · [Health check](https://reqsense-production.up.railway.app/health)
+Live demo: [https://reqsense-production.up.railway.app](https://reqsense-production.up.railway.app)
+
+Health check: [https://reqsense-production.up.railway.app/health](https://reqsense-production.up.railway.app/health)
 
 ![ReqSense product screenshot](docs/reqsense-product.png)
 
-## Tổng Quan
+## 1. User Pain Point
 
-ReqSense đóng vai trò như một Business Analyst AI. Người dùng mô tả ý tưởng bằng ngôn ngữ tự nhiên, sau đó hệ thống dẫn dắt qua các vùng yêu cầu quan trọng thay vì hỏi lan man hoặc trả lời một lần rồi dừng.
+Many founders, SMEs, freelancers, and non-technical stakeholders know what problem they want to solve, but they do not know how to express that idea as clear software requirements. In real projects, this creates several expensive problems:
 
-Ứng dụng phù hợp cho startup, SME, freelancer, agency, Product Manager hoặc BA junior cần làm rõ yêu cầu trước khi chuyển sang thiết kế, báo giá hoặc phát triển.
+- The client explains the idea in broad language, while developers need precise workflows, actors, rules, edge cases, and constraints.
+- Teams start building before requirements are complete, leading to rework, scope creep, missed business rules, and inaccurate estimates.
+- Hiring a senior Business Analyst is often too expensive for early-stage startups, SMEs, student projects, or small agencies.
+- General AI chatbots can answer questions, but they do not reliably guide users through a complete requirement discovery flow.
 
-## Market Scale & Business Validation
+ReqSense focuses on the moment before a project becomes a backlog, Jira board, or technical specification. This is where many software projects fail: the business idea exists, but the requirement definition is still incomplete.
 
-ReqSense không chỉ là một chatbot hỏi đáp. Sản phẩm nằm ở giao điểm của bốn nhu cầu đang tăng mạnh: custom software development, requirements management, AI-assisted software delivery và low-code/no-code adoption. Đây là lý do thị trường đủ lớn để chứng minh bài toán có giá trị kinh doanh.
+## 2. Project Idea
 
-### Quy mô thị trường liên quan
+ReqSense acts like a lightweight AI Business Analyst. Instead of asking the user to write a perfect prompt, the system leads them through a structured discovery conversation.
 
-| Thị trường | Quy mô gần nhất | Dự báo | Tốc độ tăng trưởng | Ý nghĩa với ReqSense |
+The product collects information across 10 requirement areas:
+
+1. Project Overview
+2. Target Users & Roles
+3. Core Features & Workflows
+4. Business Rules
+5. Non-functional Requirements
+6. Integrations
+7. Deployment & Infrastructure
+8. Compliance & Regulations
+9. Timeline & Budget
+10. Success Criteria
+
+The key idea is not simply "chat with AI". ReqSense turns requirement discovery into a guided workflow with coverage tracking, suggested answer options, gap analysis, and a final report that can be used as the first draft for a software project specification.
+
+## 3. Market Scale & Opportunity
+
+ReqSense sits at the intersection of custom software development, requirements management, low-code/no-code adoption, and AI-assisted software delivery. These markets show that the problem is not limited to a small niche; requirement discovery is a recurring need across many software projects.
+
+| Market | Current / Recent Size | Forecast | Growth | Why It Matters |
 | --- | ---: | ---: | ---: | --- |
-| Custom Software Development | $43.16B năm 2024 | $146.18B năm 2030 | 22.6% CAGR | Càng nhiều dự án phần mềm tùy chỉnh, nhu cầu làm rõ requirement trước khi build càng lớn. |
-| Requirements Management Software | $2.48B năm 2024 | $5.0B năm 2035 | 6.6% CAGR | ReqSense có thể đóng vai trò lớp thu thập và chuẩn hóa đầu vào trước các công cụ quản trị yêu cầu truyền thống. |
-| Low-code Application Development Platform | $24.8B năm 2023 | $101.7B năm 2030 | 22.5% CAGR | Người không chuyên kỹ thuật có thể tự tạo sản phẩm, nhưng vẫn cần cầu nối từ ý tưởng sang đặc tả rõ ràng. |
-| Generative AI in SDLC | $624.79M năm 2025 | $9.49B năm 2034 | 35.3% CAGR | AI đang đi sâu vào vòng đời phát triển phần mềm; requirement discovery là một bước có thể tự động hóa mạnh. |
+| Custom Software Development | USD 43.16B in 2024 | USD 146.18B by 2030 | 22.6% CAGR | More custom software projects create more demand for clear requirement discovery before development starts. |
+| Requirements Management Software | USD 2.48B in 2024 / USD 2.64B in 2025 | USD 5.0B by 2035 | 6.6% CAGR | Existing tools manage requirements after they are written; ReqSense helps create and clarify them earlier. |
+| Low-code Application Development Platform | USD 24.83B in 2023 | USD 101.68B by 2030 | 22.5% CAGR | More non-technical users can build software, but they still need help translating ideas into requirements. |
+| Generative AI in SDLC | USD 624.79M in 2025 | USD 9.49B by 2034 | 35.3% CAGR | AI is entering the software lifecycle; requirement discovery is a strong use case for AI assistance. |
 
-Nguồn tham khảo: [Grand View Research - Custom Software Development](https://www.grandviewresearch.com/industry-analysis/custom-software-development-market-report), [WiseGuy Reports - Requirements Management Software](https://www.wiseguyreports.com/reports/requirements-management-software-market), [Grand View Research - Low-code Platform](https://www.grandviewresearch.com/industry-analysis/low-code-application-development-platform-market), [Fortune Business Insights - Generative AI in SDLC](https://www.fortunebusinessinsights.com/generative-ai-in-software-development-lifecycle-market-109041).
+Sources:
 
-### Luận điểm thị trường
+- [Grand View Research - Custom Software Development Market](https://www.grandviewresearch.com/industry-analysis/custom-software-development-market-report)
+- [WiseGuy Reports - Requirements Management Software Market](https://www.wiseguyreports.com/reports/requirements-management-software-market)
+- [Grand View Research - Low-code Application Development Platform Market](https://www.grandviewresearch.com/industry-analysis/low-code-application-development-platform-market)
+- [Fortune Business Insights - Generative AI in Software Development Lifecycle Market](https://www.fortunebusinessinsights.com/generative-ai-in-software-development-lifecycle-market-109041)
 
-ReqSense nhắm vào một khoảng trống rất cụ thể: trước khi một dự án có Jira ticket, backlog, roadmap hay tài liệu SRS, khách hàng thường mới chỉ có ý tưởng rời rạc. Đây là giai đoạn dễ sai nhất vì requirement chưa rõ, stakeholder chưa thống nhất và đội kỹ thuật chưa đủ thông tin để estimate.
+### Target Customers
 
-Các công cụ như Jira, Azure DevOps, Notion hoặc Confluence quản lý thông tin tốt sau khi yêu cầu đã được viết ra. ReqSense tập trung vào bước trước đó: hỏi đúng câu, phát hiện thiếu sót, gợi ý option, đo độ phủ và tạo bản nháp đặc tả ban đầu.
+| Segment | Pain Point | ReqSense Value |
+| --- | --- | --- |
+| Startup founders & SMEs | Have product ideas but cannot afford a senior BA. | Generate a structured first requirement document before hiring developers. |
+| Freelance developers & agencies | Spend too much time clarifying vague client requests. | Use ReqSense as a smarter client intake and requirement discovery tool. |
+| Product Managers & Junior BAs | Need a structured thinking framework. | Reduce missed requirements and improve early project documentation. |
+| IT education & training | Students need practical BA simulation. | Use ReqSense as an interactive requirement analysis practice tool. |
 
-### Phân khúc khách hàng mục tiêu
+### Competitive Positioning
 
-| Phân khúc | Pain point | Vì sao cần ReqSense | Khả năng trả tiền |
+| Alternative | Strength | Gap | ReqSense Advantage |
 | --- | --- | --- | --- |
-| Startup & SME | Có ý tưởng nhưng không đủ ngân sách thuê BA senior. | Tạo đặc tả ban đầu để làm việc với dev, agency hoặc nhà đầu tư. | $20-$99/tháng hoặc pay-per-report. |
-| Freelance Developer & Tech Agency | Mất nhiều thời gian hỏi khách hàng, dễ scope creep. | Chuẩn hóa intake form thành hội thoại thông minh và xuất report. | $30-$150/tháng theo team nhỏ. |
-| Product Manager & BA Junior | Cần framework hỏi yêu cầu có cấu trúc. | Dùng như copilot để không bỏ sót business rules, edge cases, NFR. | $49-$199/tháng cho nhóm sản phẩm. |
-| Giáo dục & đào tạo IT/BA | Sinh viên cần học cách phân tích yêu cầu thực tế. | Mô phỏng một BA senior dẫn dắt discovery. | License theo lớp/trường. |
+| ChatGPT / Gemini | Flexible general AI chat. | Depends heavily on user prompting; no built-in requirement coverage tracking. | Structured BA flow, topic coverage, options, and report generation. |
+| Jira / Azure DevOps | Strong backlog and project tracking. | Assumes requirements are already clear. | Helps define requirements before they become backlog items. |
+| Notion AI / Docs AI | Good for writing and summarizing. | Not specialized for requirement elicitation. | Focused on asking the right business and product questions. |
+| Traditional BA consulting | High quality human analysis. | Expensive and not always accessible. | Low-cost first-pass requirement discovery for early-stage teams. |
 
-### TAM / SAM / SOM
+## 4. Functionality
 
-- TAM: các dự án custom software, low-code/no-code và đội sản phẩm cần chuyển ý tưởng thành yêu cầu phần mềm.
-- SAM: nhóm startup, SME, freelancer, agency và PM/BA team cần tài liệu requirement trước khi estimate hoặc phát triển.
-- SOM ban đầu: thị trường Việt Nam/Đông Nam Á, nơi nhiều SME và startup muốn build phần mềm nhưng không luôn có BA chuyên trách.
+ReqSense currently supports the core workflow needed to prove the product concept:
 
-### Đối thủ và lợi thế khác biệt
+- Onboarding flow to adapt the conversation by language, role, and experience level.
+- AI-guided requirement conversation with a Senior BA assistant persona.
+- Suggested answer options so users can continue even when they are unsure how to respond.
+- Coverage tracking across requirement topics.
+- Confidence tracking to estimate how complete the collected requirement information is.
+- Multi-agent orchestration for requirement analysis, gap detection, research support, and question planning.
+- Agent trace UI so users can see why the system asks the next question.
+- Document upload for PDF, DOCX, TXT, and Markdown requirement materials.
+- Gap analysis to identify missing or weak requirement areas.
+- Report evaluation to assess the quality of the generated requirement output.
+- Final Markdown report generation with business, functional, non-functional, risk, and clarification sections.
+- Production deployment on Railway.
 
-| Nhóm sản phẩm | Điểm mạnh | Khoảng trống còn lại | Lợi thế của ReqSense |
-| --- | --- | --- | --- |
-| ChatGPT/Gemini tổng quát | Linh hoạt, trả lời nhanh. | Người dùng phải biết prompt; không track coverage; dễ hỏi lan man. | Luồng BA có cấu trúc, confidence, topic coverage, option chips. |
-| Jira/Confluence/Azure DevOps | Quản lý backlog và tài liệu tốt. | Cần requirement đã rõ từ trước. | Hỗ trợ giai đoạn trước backlog: khai phá và chuẩn hóa yêu cầu. |
-| Notion AI/Docs AI | Soạn thảo tài liệu nhanh. | Không có cơ chế hỏi sâu theo nghiệp vụ. | Hỏi tiếp theo ngữ cảnh và phát hiện phần còn thiếu. |
-| Aha!/ProductPlan | Tốt cho roadmap và planning. | Không chuyên cho requirement elicitation ban đầu. | Tập trung vào discovery, gap analysis và report đặc tả. |
+## 5. Tech Stack
 
-### Mô hình kinh doanh đề xuất
+| Layer | Technology | Reason |
+| --- | --- | --- |
+| Frontend | React 18 + Vite | Fast development, component-based UI, production build support. |
+| Styling | CSS | Lightweight and easy to customize for a focused prototype. |
+| UI Rendering | react-markdown, remark-gfm, rehype-raw | Renders AI responses and generated reports cleanly. |
+| Icons | lucide-react | Consistent UI icons without heavy dependencies. |
+| Backend | Node.js + Express | Simple API layer for chat, upload, evaluation, and static serving. |
+| AI | OpenAI Chat Completions API | Generates structured BA questions, analysis, and reports. |
+| Search Support | SerpAPI | Supports external research signals for the agent pipeline. |
+| Document Parsing | pdf-parse, mammoth | Extracts text from uploaded PDF and DOCX files. |
+| Deployment | Railway | Simple full-stack deployment with environment variables and public domain. |
 
-| Gói | Khách hàng | Giá tham khảo | Giá trị chính |
-| --- | --- | ---: | --- |
-| Free | Cá nhân thử nghiệm | $0 | Số phiên giới hạn, một số report mẫu. |
-| Pro | Freelancer, founder, PM cá nhân | $29/tháng | Unlimited sessions, export report, lưu lịch sử. |
-| Team | Agency, startup team | $99/tháng | Nhiều seat, workspace, template theo domain. |
-| Education/Enterprise | Trường học, công ty | Custom | License theo tổ chức, branding, policy riêng. |
-
-### Động lực tăng trưởng
-
-- AI adoption trong doanh nghiệp khiến các bước phân tích, viết tài liệu và hỗ trợ ra quyết định được tự động hóa nhanh hơn.
-- Outsourcing phần mềm tăng làm nhu cầu có đặc tả rõ ràng trước khi báo giá và ký hợp đồng trở nên quan trọng hơn.
-- Low-code/no-code mở rộng nhóm người có thể tạo sản phẩm, nhưng nhóm này vẫn thiếu kỹ năng phân tích yêu cầu.
-- Remote work làm giao tiếp bất đồng bộ nhiều hơn, vì vậy tài liệu requirement chuẩn trở thành lớp đồng bộ giữa business và technical team.
-- Hệ sinh thái công nghệ Việt Nam/Đông Nam Á có nhiều SME, startup và agency nhỏ, phù hợp với công cụ nhẹ, nhanh, chi phí thấp.
-
-## Tính Năng Chính
-
-- Hội thoại theo luồng BA với 10 vùng yêu cầu: tổng quan, người dùng, workflow, business rules, phi chức năng, tích hợp, hạ tầng, tuân thủ, timeline, tiêu chí thành công.
-- Option chips để người dùng chọn nhanh nhưng vẫn có thể tự nhập câu trả lời.
-- Multi-agent pipeline để phân tích yêu cầu, tìm khoảng trống, lập kế hoạch câu hỏi tiếp theo và ghi lại quá trình xử lý.
-- Theo dõi độ phủ và confidence theo thời gian thực.
-- Upload tài liệu yêu cầu để trích xuất nội dung từ PDF/DOCX/TXT/MD.
-- Phân tích gap và đánh giá chất lượng báo cáo.
-- Tạo báo cáo đặc tả yêu cầu dạng Markdown.
-- Giao diện 3 vùng: tiến độ, hội thoại, phân tích/báo cáo.
-- Deploy production trên Railway, frontend được build và serve chung từ Express.
-
-## Tech Stack
-
-| Lớp | Công nghệ |
-| --- | --- |
-| Frontend | React 18, Vite, CSS modules/plain CSS |
-| UI | lucide-react, react-markdown, remark-gfm, rehype-raw |
-| Backend | Node.js, Express |
-| AI | OpenAI Chat Completions API |
-| Search | SerpAPI, dùng cho agent nghiên cứu nếu có cấu hình |
-| Upload parsing | pdf-parse, mammoth |
-| Deploy | Railway, Nixpacks |
-
-## Kiến Trúc
+## 6. System Architecture
 
 ```mermaid
 flowchart LR
-  User["Người dùng"] --> Client["React + Vite"]
+  User["User"] --> Client["React + Vite Client"]
   Client --> API["Express API"]
-  API --> Chat["/api/chat"]
-  API --> Gaps["/api/analyze-gaps"]
-  API --> Eval["/api/evaluate"]
-  API --> Upload["/api/upload-document"]
-  Chat --> Agents["Multi-agent orchestrator"]
-  Agents --> OpenAI["OpenAI model"]
-  Agents --> Search["SerpAPI search"]
-  API --> Static["Serve client/dist"]
+  API --> Chat["POST /api/chat"]
+  API --> Gap["POST /api/analyze-gaps"]
+  API --> Eval["POST /api/evaluate"]
+  API --> Upload["POST /api/upload-document"]
+  Chat --> Agents["Multi-agent Orchestrator"]
+  Agents --> OpenAI["OpenAI Model"]
+  Agents --> Search["SerpAPI"]
+  Upload --> Parser["PDF / DOCX / TXT Parser"]
+  API --> Static["Serve client/dist in production"]
 ```
 
-## Chạy Local
+The architecture is intentionally practical for a student or early-stage product prototype:
 
-Yêu cầu:
+- The frontend and backend are separated during development.
+- In production, the React app is built into `client/dist` and served by Express.
+- API routes remain under `/api`, which keeps frontend calls simple and deployment-friendly.
+- The multi-agent orchestrator is isolated in the backend, so the UI does not need to know the internal reasoning pipeline.
+
+## 7. Feasibility
+
+ReqSense is feasible because it does not require training a new AI model or building a large enterprise platform from scratch. The product uses existing LLM capabilities, then adds product-specific structure around them:
+
+- Requirement topics define the conversation scope.
+- The backend controls the output format and report generation.
+- The UI tracks progress and makes the interaction easier for non-technical users.
+- File upload extends the product from pure chat to document-assisted analysis.
+- Railway deployment proves that the system can run as a public web application.
+
+The first practical market entry is not large enterprises. The realistic starting point is small teams that need a first draft of requirements quickly: founders, student teams, freelance developers, and small agencies.
+
+## 8. Demo Flow
+
+1. Open the deployed app.
+2. Choose language, role, and experience level.
+3. Describe a software idea in natural language.
+4. ReqSense asks focused follow-up questions.
+5. The user answers manually or selects suggested options.
+6. The system updates coverage and confidence.
+7. The user can run gap analysis or generate a requirement report.
+8. The report becomes a first draft for discussion with developers, stakeholders, or evaluators.
+
+## 9. Local Setup
+
+Requirements:
 
 - Node.js 18+
 - npm
 - OpenAI API key
 
-Clone và cài dependencies:
+Install dependencies:
 
 ```bash
 git clone https://github.com/dammanhdungvn/ReqSense.git
@@ -130,7 +168,7 @@ cd ReqSense
 npm install
 ```
 
-Tạo file môi trường ở `server/.env`:
+Create `server/.env`:
 
 ```env
 PORT=3001
@@ -139,7 +177,7 @@ OPENAI_MODEL=gpt-4o-mini
 SERPAPI_API_KEY=your_serpapi_key_optional
 ```
 
-Chạy frontend và backend khi phát triển:
+Run in development:
 
 ```bash
 # Terminal 1
@@ -149,23 +187,17 @@ npm --workspace server run dev
 npm --workspace client run dev
 ```
 
-Mở app tại:
+Open:
 
 ```text
 http://localhost:5173
 ```
 
-Build production:
+Production build:
 
 ```bash
 npm run build
 npm start
-```
-
-Sau khi start, backend sẽ serve cả API và frontend build tại:
-
-```text
-http://localhost:3001
 ```
 
 Health check:
@@ -174,7 +206,17 @@ Health check:
 curl http://localhost:3001/health
 ```
 
-## Cấu Trúc Thư Mục
+## 10. API Overview
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Check server status. |
+| `POST /api/chat` | Main BA conversation and report generation. |
+| `POST /api/analyze-gaps` | Analyze missing requirement areas. |
+| `POST /api/evaluate` | Evaluate requirement report quality. |
+| `POST /api/upload-document` | Upload and extract text from requirement documents. |
+
+## 11. Project Structure
 
 ```text
 ReqSense/
@@ -200,50 +242,20 @@ ReqSense/
 └── README.md
 ```
 
-## API Chính
+## 12. Future Development
 
-| Endpoint | Mục đích |
-| --- | --- |
-| `GET /health` | Kiểm tra server còn sống |
-| `POST /api/chat` | Hội thoại BA, sinh câu hỏi tiếp theo hoặc báo cáo |
-| `POST /api/analyze-gaps` | Phân tích vùng yêu cầu còn thiếu |
-| `POST /api/evaluate` | Đánh giá chất lượng báo cáo |
-| `POST /api/upload-document` | Upload và trích xuất nội dung tài liệu |
+- Add user accounts and saved projects.
+- Export reports to PDF and DOCX.
+- Add domain-specific templates, such as e-commerce, healthcare, education, CRM, and booking systems.
+- Add collaboration features for founders, developers, and stakeholders.
+- Add requirement versioning and change history.
+- Improve evaluation scoring with more detailed quality metrics.
 
-## Deploy Railway
+## 13. Why This Project Is Worth Building
 
-Project hiện đang được deploy tại:
+ReqSense addresses a real and repeated software delivery problem: unclear requirements at the beginning of a project. The product is technically feasible with current AI APIs, has a working deployed prototype, and targets users who need requirement clarity but cannot always afford a professional BA.
 
-[https://reqsense-production.up.railway.app/](https://reqsense-production.up.railway.app/)
-
-Railway dùng root workspace:
-
-- `npm run build`: build frontend trong `client`
-- `npm start`: chạy Express server trong `server`
-- Express serve static files từ `client/dist`
-
-Các biến môi trường cần cấu hình trên Railway:
-
-```env
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4o-mini
-SERPAPI_API_KEY=...
-```
-
-## Báo Cáo Đầu Ra
-
-Khi đủ ngữ cảnh, ReqSense có thể tạo báo cáo yêu cầu gồm các phần:
-
-- Project summary
-- Functional requirements
-- Non-functional requirements
-- Actors and roles
-- Business rules
-- Constraints
-- Missing information
-- Clarification questions
-- Requirement quality assessment
-- Risk analysis
+The core value is simple: help people ask and answer the right questions before software development begins.
 
 ## License
 

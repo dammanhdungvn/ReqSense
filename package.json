@@ -1,0 +1,16 @@
+{
+  "name": "reqsense",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "build": "npm --workspace client run build",
+    "start": "npm --workspace server start"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

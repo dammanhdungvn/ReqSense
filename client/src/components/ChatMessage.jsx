@@ -1,5 +1,6 @@
 import ReactMarkdown from 'react-markdown';
 import AgentTrace from './AgentTrace';
+import DocumentCard from './DocumentCard';
 import './ChatMessage.css';
 
 function BadgeText({ children }) {
@@ -33,7 +34,9 @@ export default function ChatMessage({ message }) {
         )}
 
         <div className={`msg-bubble ${isModel ? 'bubble-model' : 'bubble-user'}`}>
-          {isModel ? (
+          {message.type === 'document' ? (
+            <DocumentCard doc={message.doc} />
+          ) : isModel ? (
             <ReactMarkdown
               components={{
                 code: ({ children }) => <BadgeText>{children}</BadgeText>,
@@ -50,6 +53,7 @@ export default function ChatMessage({ message }) {
           ) : (
             <span>{message.text}</span>
           )}
+
         </div>
         {isModel && <AgentTrace trace={message.agentTrace} />}
       </div>

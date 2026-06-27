@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const chatRoute = require('./src/chatRoute');
 const evaluateRoute = require('./src/evaluateRoute');
+const uploadRoute = require('./src/uploadRoute');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -14,6 +15,7 @@ app.use(express.json({ limit: '4mb' }));
 
 app.use('/api', chatRoute);
 app.use('/api', evaluateRoute);
+app.use('/api', uploadRoute);
 
 app.listen(PORT, () => {
   console.log(`ReqSense server running on http://localhost:${PORT}`);

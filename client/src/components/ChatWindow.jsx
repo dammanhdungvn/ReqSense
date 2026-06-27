@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { sendMessage, analyzeGaps, evaluateReport } from '../api';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { sendMessage, analyzeGaps, evaluateReport, uploadDocument } from '../api';
 import ChatMessage from './ChatMessage';
 import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
 import GapAnalysis from './GapAnalysis';
+import RequirementsTree from './RequirementsTree';
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 340;
@@ -82,9 +83,12 @@ export default function ChatWindow({ userProfile }) {
   const [gapLoading, setGapLoading] = useState(false);
   const [evaluation, setEvaluation] = useState(null);
   const [evalLoading, setEvalLoading] = useState(false);
+  const [refineMode, setRefineMode] = useState(false);
+  const [rightTab, setRightTab] = useState('tree');
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
+  const fileInputRef = useRef(null);
 
   const exchangeCount = displayMsgs.filter(m => m.role === 'user').length;
   const confidence = useMemo(
@@ -188,6 +192,19 @@ export default function ChatWindow({ userProfile }) {
     startSession();
   }
 
+  async function handleRefine() {
+    setReport(null);
+    setReportMeta(null);
+    setEvaluation(null);
+    setEvalLoading(false);
+    setGapAnalysis(null);
+    setRefineMode(true);
+    const refineText = userProfile?.language === 'vi'
+      ? 'Báo cáo đã được tạo. Tôi muốn bổ sung thêm thông tin để cải thiện nó. Bạn hãy hỏi tôi những gì còn thiếu nhé.'
+      : 'The report has been generated. I want to add more details to improve it. Please ask me about what information is still missing.';
+    await send(refineText);
+  }
+
   async function fetchGapAnalysis() {
     setGapLoading(true);
     try {
@@ -195,6 +212,7 @@ export default function ChatWindow({ userProfile }) {
         apiHistory, coveredTopics, confidence, userProfile?.language ?? 'en'
       );
       setGapAnalysis(data);
+      setRefineMode(false);
     } catch (_) {}
     finally { setGapLoading(false); }
   }
@@ -212,8 +230,14 @@ export default function ChatWindow({ userProfile }) {
   useEffect(() => {
     if (readyForReport && !gapAnalysis && !gapLoading && apiHistory.length > 1) {
       fetchGapAnalysis();
+      setRightTab('gaps');
     }
   }, [readyForReport]);
+
+  // Switch to report tab when report is generated
+  useEffect(() => {
+    if (report) setRightTab('report');
+  }, [report]);
 
   // Auto-scroll
   useEffect(() => {
@@ -287,6 +311,50 @@ export default function ChatWindow({ userProfile }) {
     };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    // Show document card in chat immediately
+    const docMsg = { role: 'user', type: 'document', doc: { filename: file.name, format: file.name.split('.').pop().toUpperCase(), wordCount: 0, content: '' } };
+    setDisplayMsgs(prev => [...prev.map(m => ({ ...m, options: null })), docMsg]);
+    setLoading(true);
+    setError(null);
+
+    try {
+      const doc = await uploadDocument(file);
+
+      // Update the doc card with real data
+      setDisplayMsgs(prev => prev.map((m, i) =>
+        i === prev.length - 1 && m.type === 'document' ? { ...m, doc } : m
+      ));
+
+      // Build context message for Alex
+      const contextMsg = {
+        role: 'user',
+        text: `[DOCUMENT: ${doc.filename}]\n${doc.content}`,
+      };
+      const newHistory = [...apiHistory, contextMsg];
+
+      const data = await sendMessage(newHistory, false);
+      setApiHistory([...newHistory, { role: 'model', text: toRawJson(data) }]);
+      setDisplayMsgs(prev => [...prev, {
+        role: 'model',
+        text: data.message,
+        options: data.options,
+        topic: data.currentTopic,
+        agentTrace: data.agentTrace,
+      }]);
+      applyBA(data);
+    } catch (err) {
+      setError(err.message || 'Failed to process document.');
+      setDisplayMsgs(prev => prev.slice(0, -1));
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleKeyDown(e) {
@@ -364,21 +432,27 @@ export default function ChatWindow({ userProfile }) {
         {error && <div className="error-banner">{error}</div>}
 
         <div className="chat-footer">
-          {readyForReport && !report && (
-            <button
-              className="generate-report-btn"
-              onClick={generateReport}
-              disabled={loading}
-            >
-              Generate Full Report
-            </button>
-          )}
           <div className="input-row">
+            <button
+              className="attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              title="Upload document (PDF, MD, DOCX)"
+            >
+              📎
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.md,.txt,.doc,.docx"
+              style={{ display: 'none' }}
+              onChange={handleFileUpload}
+            />
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your answer… (Enter to send, Shift+Enter for newline)"
+              placeholder="Type your answer… or 📎 attach a document"
               disabled={loading}
               rows={2}
             />
@@ -397,29 +471,71 @@ export default function ChatWindow({ userProfile }) {
 
       {/* ── Report panel ── */}
       <div className="report-panel">
-        {report ? (
+        {/* Tab bar */}
+        <div className="panel-tabs">
+          <button
+            className={`panel-tab ${rightTab === 'tree' ? 'panel-tab-active' : ''}`}
+            onClick={() => setRightTab('tree')}
+          >
+            🌳 {userProfile?.language === 'vi' ? 'Cây yêu cầu' : 'Req. Tree'}
+          </button>
+          {readyForReport && (
+            <button
+              className={`panel-tab ${rightTab === 'gaps' ? 'panel-tab-active' : ''}`}
+              onClick={() => setRightTab('gaps')}
+            >
+              🔍 {userProfile?.language === 'vi' ? 'Phân tích' : 'Gap Analysis'}
+            </button>
+          )}
+          {report && (
+            <button
+              className={`panel-tab ${rightTab === 'report' ? 'panel-tab-active' : ''}`}
+              onClick={() => setRightTab('report')}
+            >
+              📄 {userProfile?.language === 'vi' ? 'Báo cáo' : 'Report'}
+            </button>
+          )}
+        </div>
+
+        {/* Tab content */}
+        {rightTab === 'tree' && (
+          <RequirementsTree
+            coveredTopics={coveredTopics}
+            currentTopic={currentTopic}
+            language={userProfile?.language}
+          />
+        )}
+
+        {rightTab === 'gaps' && (
+          <GapAnalysis
+            data={gapAnalysis}
+            loading={gapLoading}
+            onGenerate={generateReport}
+            onAskQuestion={(q) => send(q)}
+            onReanalyze={fetchGapAnalysis}
+            isRefineMode={refineMode}
+            language={userProfile?.language}
+          />
+        )}
+
+        {rightTab === 'report' && report && (
           <AnalysisResult
             content={report}
             meta={reportMeta}
             evaluation={evaluation}
             evalLoading={evalLoading}
             language={userProfile?.language}
+            onRefine={handleRefine}
           />
-        ) : readyForReport ? (
-          <GapAnalysis
-            data={gapAnalysis}
-            loading={gapLoading}
-            onGenerate={generateReport}
-            onAskQuestion={(q) => setInput(q)}
-            language={userProfile?.language}
-          />
-        ) : (
+        )}
+
+        {rightTab === 'report' && !report && (
           <div className="report-empty">
             <h3>Requirements Report</h3>
             <div className="steps">
               <div className="step"><span>1</span>Describe your software idea</div>
               <div className="step"><span>2</span>Answer Alex's questions</div>
-              <div className="step"><span>3</span>Reach 75% confidence</div>
+              <div className="step"><span>3</span>Watch the tree fill up</div>
               <div className="step"><span>4</span>Generate your specification</div>
             </div>
           </div>

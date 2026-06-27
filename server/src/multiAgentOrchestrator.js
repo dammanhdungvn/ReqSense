@@ -19,6 +19,9 @@ const AGENT_NAMES = [
   'Question Planning Agent',
 ];
 
+const SERPAPI_SEARCH_LIMIT = 5;
+const SERPAPI_QUERY_LIMIT = 3;
+
 function safeJsonParse(value) {
   if (!value || typeof value !== 'string') return null;
 
@@ -175,6 +178,7 @@ function makeEmptyBusinessDocuments(domain = 'unknown') {
     searchQueries: [],
     documentTypes: [],
     recommendedSources: [],
+    searchResults: [],
     keyFindings: [],
     verificationNotes: [],
   };
@@ -234,6 +238,156 @@ function asShortList(value, fallback = []) {
   return value
     .filter(item => typeof item === 'string' && item.trim())
     .slice(0, 4);
+}
+
+function getHostname(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch (_) {
+    return '';
+  }
+}
+
+function makeSearchSources(businessDocuments) {
+  if (!Array.isArray(businessDocuments.searchResults)) return [];
+
+  return businessDocuments.searchResults
+    .filter(result => result && result.link)
+    .map(result => ({
+      title: result.title || 'Google result',
+      url: result.link,
+      snippet: result.snippet || '',
+      source: result.source || getHostname(result.link),
+      query: result.query || '',
+    }))
+    .slice(0, SERPAPI_SEARCH_LIMIT);
+}
+
+function getSerpApiKey() {
+  return process.env.SERPAPI_API_KEY || process.env['SERPAPI_API-KEY'] || '';
+}
+
+function normalizeSearchQueries(queries, domain) {
+  const normalized = Array.isArray(queries)
+    ? queries
+        .filter(query => typeof query === 'string' && query.trim())
+        .map(query => query.trim())
+    : [];
+
+  if (normalized.length > 0) {
+    return [...new Set(normalized)].slice(0, SERPAPI_QUERY_LIMIT);
+  }
+
+  if (!domain || domain === 'unknown') return [];
+
+  return [
+    `${domain} software requirements best practices`,
+    `${domain} workflow business process`,
+  ];
+}
+
+function normalizeSerpResult(result) {
+  const link = result.link || result.redirect_link || '';
+  const source = result.source || result.displayed_link || '';
+
+  return {
+    title: result.title || 'Untitled result',
+    link,
+    snippet: result.snippet || result.rich_snippet?.top?.detected_extensions?.snippet || '',
+    source,
+  };
+}
+
+async function searchGoogleWithSerpApi(query) {
+  const apiKey = getSerpApiKey();
+  if (!apiKey) {
+    return {
+      query,
+      results: [],
+      error: 'SERPAPI_API_KEY is not configured.',
+    };
+  }
+
+  const params = new URLSearchParams({
+    engine: 'google',
+    q: query,
+    api_key: apiKey,
+    num: String(SERPAPI_SEARCH_LIMIT),
+  });
+
+  try {
+    const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+    if (!response.ok) {
+      return {
+        query,
+        results: [],
+        error: `SerpAPI request failed with HTTP ${response.status}.`,
+      };
+    }
+
+    const data = await response.json();
+    const organicResults = Array.isArray(data.organic_results) ? data.organic_results : [];
+
+    return {
+      query,
+      results: organicResults.slice(0, SERPAPI_SEARCH_LIMIT).map(normalizeSerpResult),
+      error: data.error || null,
+    };
+  } catch (err) {
+    return {
+      query,
+      results: [],
+      error: err.message,
+    };
+  }
+}
+
+async function enrichBusinessDocumentsWithSearch(businessDocuments) {
+  if (!businessDocuments.searchNeeded) return businessDocuments;
+
+  const queries = normalizeSearchQueries(businessDocuments.searchQueries, businessDocuments.domain);
+  if (queries.length === 0) {
+    return {
+      ...businessDocuments,
+      verificationNotes: [
+        ...(businessDocuments.verificationNotes || []),
+        'No usable search query was generated for this domain.',
+      ],
+    };
+  }
+
+  const searches = await Promise.all(queries.map(searchGoogleWithSerpApi));
+  const searchResults = searches.flatMap(search =>
+    search.results.map(result => ({
+      query: search.query,
+      ...result,
+    }))
+  ).slice(0, SERPAPI_SEARCH_LIMIT);
+
+  const errors = searches
+    .filter(search => search.error)
+    .map(search => `Search "${search.query}" failed: ${search.error}`);
+
+  const sourceFindings = searchResults.map(result =>
+    `${result.title}${result.source ? ` (${result.source})` : ''}: ${result.snippet || result.link}`
+  );
+
+  return {
+    ...businessDocuments,
+    searchQueries: queries,
+    searchResults,
+    keyFindings: [
+      ...(businessDocuments.keyFindings || []),
+      ...sourceFindings,
+    ].slice(0, 8),
+    verificationNotes: [
+      ...(businessDocuments.verificationNotes || []),
+      ...errors,
+      ...(searchResults.length > 0
+        ? ['Search results are external references only; confirm requirements with the customer before marking them as facts.']
+        : ['No Google search results were available; use internal BA knowledge and customer confirmation.']),
+    ],
+  };
 }
 
 function makeAgentTrace({ analysis, research, gapAnalysis, questionPlan }) {
@@ -310,14 +464,18 @@ function makeSelectedAgentTrace({
   }
 
   if (executedAgents.includes('Business Document Search Agent')) {
+    const searchSources = makeSearchSources(businessDocuments);
     trace.push({
       agent: 'Business Document Search Agent',
       title: 'Tìm tài liệu nghiệp vụ liên quan',
-      summary: `Domain: ${businessDocuments.domain || analysis.domain || 'chưa xác định'}. Cần tra cứu: ${businessDocuments.searchNeeded ? 'có' : 'không rõ/chưa cần'}.`,
+      summary: `Domain: ${businessDocuments.domain || analysis.domain || 'chưa xác định'}. ${searchSources.length > 0 ? `Đã dùng Google Search và tìm được ${searchSources.length} nguồn tham khảo.` : `Cần tra cứu: ${businessDocuments.searchNeeded ? 'có' : 'không rõ/chưa cần'}.`}`,
+      searchUsed: searchSources.length > 0,
+      sources: searchSources,
       details: [
+        ...asShortList((businessDocuments.searchResults || []).map(result => `Google: ${result.title}`)),
+        ...asShortList(businessDocuments.searchQueries),
         ...asShortList(businessDocuments.documentTypes),
         ...asShortList(businessDocuments.recommendedSources),
-        ...asShortList(businessDocuments.searchQueries),
         ...asShortList(businessDocuments.keyFindings),
       ].slice(0, 6),
     });
@@ -488,8 +646,8 @@ async function runBusinessDocumentSearchAgent(openai, model, context, analysis) 
     temperature: 0.2,
     system: `You are the Business Document Search Agent.
 Your job is to identify business documents, standards, workflows, policy references, and search queries that are relevant to the customer's domain.
-You do not browse the web in this environment. Do not invent exact URLs.
-Provide practical document types, trusted source categories, and search keywords that a BA should use to validate the domain.
+The application may run Google Search separately after your response using the search queries you provide.
+Do not invent exact URLs. Provide practical document types, trusted source categories, and 2-3 precise Google search queries.
 Return JSON only.`,
     user: `Requirement Analysis Agent output:
 ${JSON.stringify(analysis, null, 2)}
@@ -504,7 +662,7 @@ Return this JSON shape:
 {
   "domain": "domain name",
   "searchNeeded": true,
-  "searchQueries": ["query to find business documents"],
+  "searchQueries": ["precise Google query to find business documents or workflows"],
   "documentTypes": ["document type, standard, policy, workflow, template"],
   "recommendedSources": ["trusted source category or organization name, not fake URL"],
   "keyFindings": ["short business insight likely relevant to requirements"],
@@ -520,7 +678,9 @@ async function runResearchAgent(openai, model, analysis, businessDocuments = mak
     system: `You are the Research Agent.
 Your job is to provide concise domain knowledge for requirement elicitation.
 Use general software and business-analysis best practices.
-Do not claim that you browsed the web. Do not cite external sources.
+You may use Business Document Search Agent search results as external reference signals.
+Do not treat external search results as customer-confirmed requirements.
+Do not claim a requirement is confirmed unless it is explicitly stated in the conversation.
 Return JSON only.`,
     user: `Requirement analysis:
 ${JSON.stringify(analysis, null, 2)}
@@ -560,6 +720,7 @@ async function runGapAnalysisAgent(openai, model, context, analysis, research, b
 Your job is to compare current requirements with expected domain knowledge.
 Score completion conservatively. Keep previous covered topics; never remove them.
 Only mark a topic covered when the customer gave real detail.
+Use external search results only to identify potential gaps and follow-up questions, not as confirmed facts.
 Return JSON only.`,
     user: `Requirement areas:
 ${REQUIREMENT_AREAS.map((area, index) => `${index + 1}. ${area}`).join('\n')}
@@ -612,6 +773,7 @@ If the latest customer message is only the seed greeting, greet briefly and ask 
 Always acknowledge the latest real customer answer first with "✅" when there is one.
 Use Markdown bold for important terms.
 When options help, provide 3-4 concise options and make the final option "Something else".
+If external search results reveal domain-specific gaps, ask the customer to confirm them instead of asserting them as requirements.
 Return JSON only.`,
     user: `Requirement areas:
 ${REQUIREMENT_AREAS.map((area, index) => `${index + 1}. ${area}`).join('\n')}
@@ -665,6 +827,7 @@ Create a professional Markdown requirements specification from the multi-agent a
 Write in the same language used by the customer in the conversation.
 Mark explicitly stated items as ✅ **[Confirmed]**.
 Mark carefully inferred items as ⚠️ **[Inferred]**.
+Mark external search references as 🔎 **[Reference]** and keep them separate from confirmed requirements.
 Do not invent unsupported details.`,
     user: `Conversation:
 ${context.conversationText}
@@ -705,6 +868,8 @@ Create this Markdown report:
 ## 9. Timeline & Budget
 
 ## 10. Success Criteria
+
+## External References
 
 ## Open Questions
 
@@ -752,6 +917,7 @@ async function runElicitationPipeline(openai, model, messages) {
 
   if (executedAgents.includes('Business Document Search Agent')) {
     businessDocuments = await runBusinessDocumentSearchAgent(openai, model, context, analysis);
+    businessDocuments = await enrichBusinessDocumentsWithSearch(businessDocuments);
   } else {
     businessDocuments = makeEmptyBusinessDocuments(analysis.domain);
   }
@@ -798,7 +964,8 @@ async function generateRequirementReport(openai, model, messages) {
   };
 
   const analysis = await runRequirementAnalysisAgent(openai, model, context);
-  const businessDocuments = await runBusinessDocumentSearchAgent(openai, model, context, analysis);
+  let businessDocuments = await runBusinessDocumentSearchAgent(openai, model, context, analysis);
+  businessDocuments = await enrichBusinessDocumentsWithSearch(businessDocuments);
   const research = await runResearchAgent(openai, model, analysis, businessDocuments);
   const gapAnalysis = await runGapAnalysisAgent(openai, model, context, analysis, research, businessDocuments);
 

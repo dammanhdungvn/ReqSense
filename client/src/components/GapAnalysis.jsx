@@ -1,10 +1,10 @@
 import './GapAnalysis.css';
 
 const QUALITY_CONFIG = {
-  solid:   { label: 'Solid',   color: '#3fb950', bg: 'rgba(63,185,80,0.1)',   icon: '✓' },
-  partial: { label: 'Partial', color: '#d29922', bg: 'rgba(210,153,34,0.1)', icon: '◑' },
-  thin:    { label: 'Thin',    color: '#f0883e', bg: 'rgba(240,136,62,0.1)', icon: '◔' },
-  missing: { label: 'Missing', color: '#f85149', bg: 'rgba(248,81,73,0.1)',  icon: '○' },
+  solid:   { label: { vi: 'Đầy đủ', en: 'Solid' },   color: '#3fb950', bg: 'rgba(63,185,80,0.1)',   icon: '✓' },
+  partial: { label: { vi: 'Một phần', en: 'Partial' }, color: '#d29922', bg: 'rgba(210,153,34,0.1)', icon: '◑' },
+  thin:    { label: { vi: 'Mỏng', en: 'Thin' },    color: '#f0883e', bg: 'rgba(240,136,62,0.1)', icon: '◔' },
+  missing: { label: { vi: 'Thiếu', en: 'Missing' }, color: '#f85149', bg: 'rgba(248,81,73,0.1)',  icon: '○' },
 };
 
 const VI = {
@@ -110,7 +110,7 @@ export default function GapAnalysis({ data, loading, onGenerate, onAskQuestion, 
                   </span>
                   <div>
                     <span className="ga-topic-name">{topic.name}</span>
-                    <span className="ga-quality-label" style={{ color: cfg.color }}>{cfg.label}</span>
+                    <span className="ga-quality-label" style={{ color: cfg.color }}>{cfg.label[language === 'vi' ? 'vi' : 'en']}</span>
                   </div>
                 </div>
                 <ScoreBar score={topic.score} />

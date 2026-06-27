@@ -4,7 +4,7 @@ import './ReportEvaluation.css';
 const DIMS = {
   completeness:     { vi: 'Độ đầy đủ',           en: 'Completeness',     icon: '📋' },
   specificity:      { vi: 'Tính cụ thể',          en: 'Specificity',      icon: '🎯' },
-  userStories:      { vi: 'User Stories',         en: 'User Stories',     icon: '👤' },
+  userStories:      { vi: 'Câu chuyện người dùng', en: 'User Stories',     icon: '👤' },
   technicalClarity: { vi: 'Rõ ràng kỹ thuật',    en: 'Technical Clarity',icon: '⚙️' },
   riskCoverage:     { vi: 'Phủ rủi ro',           en: 'Risk Coverage',    icon: '🛡️' },
   devReadiness:     { vi: 'Sẵn sàng dev',         en: 'Dev Readiness',    icon: '🚀' },

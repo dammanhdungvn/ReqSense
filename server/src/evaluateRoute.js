@@ -7,7 +7,7 @@ const model = () => process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
 /* ── POST /api/analyze-gaps ────────────────────────────── */
 router.post('/analyze-gaps', async (req, res) => {
-  const { messages, coveredTopics, confidence, language } = req.body;
+  const { messages, coveredTopics, skippedTopics, confidence, language } = req.body;
   const lang = language === 'vi' ? 'Vietnamese' : 'English';
 
   const conversationText = (messages || [])
@@ -18,11 +18,13 @@ router.post('/analyze-gaps', async (req, res) => {
 Language of conversation: ${lang}
 Confidence score so far: ${confidence}/100
 Topics marked as covered: ${(coveredTopics || []).join(', ') || 'none'}
+Topics the customer explicitly skipped: ${(skippedTopics || []).join(', ') || 'none'}
 
 Conversation transcript:
 ${conversationText}
 
-Analyze the quality of coverage for ALL 10 requirement areas and return ONLY valid JSON (no extra text):
+Analyze the quality of coverage for ALL 10 requirement areas and return ONLY valid JSON (no extra text).
+For skipped topics, keep the topic in the list but set "question": null. Do not suggest follow-up questions for skipped topics.
 
 {
   "topics": [

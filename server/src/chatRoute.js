@@ -3,6 +3,7 @@ const OpenAI = require('openai');
 const {
   runElicitationPipeline,
   generateRequirementReport,
+  isReportRequest,
 } = require('./multiAgentOrchestrator');
 
 const router = express.Router();
@@ -18,7 +19,11 @@ router.post('/chat', async (req, res) => {
   try {
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-    if (generateReport) {
+    const lastUserMessage = [...messages].reverse().find(
+      msg => msg.role === 'user' && msg.text !== 'GENERATE_REPORT'
+    )?.text || '';
+
+    if (generateReport || isReportRequest(lastUserMessage)) {
       const content = await generateRequirementReport(openai, model, messages);
       return res.json({ type: 'report', content });
     }
@@ -30,6 +35,8 @@ router.post('/chat', async (req, res) => {
       confidence: data.confidence,
       currentTopic: data.currentTopic,
       coveredTopics: data.coveredTopics || [],
+      confirmedFeatures: data.confirmedFeatures || [],
+      skippedTopics: data.skippedTopics || [],
       options: data.options || null,
       readyForReport: data.readyForReport || false,
       agentTrace: data.agentTrace || [],

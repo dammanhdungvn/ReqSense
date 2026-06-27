@@ -15,8 +15,8 @@ export function sendMessage(messages, generateReport = false) {
   return post('/api/chat', { messages, generateReport });
 }
 
-export function analyzeGaps(messages, coveredTopics, confidence, language) {
-  return post('/api/analyze-gaps', { messages, coveredTopics, confidence, language });
+export function analyzeGaps(messages, coveredTopics, skippedTopics, confidence, language) {
+  return post('/api/analyze-gaps', { messages, coveredTopics, skippedTopics, confidence, language });
 }
 
 export function evaluateReport(report, language) {

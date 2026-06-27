@@ -5,6 +5,7 @@ import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
 import GapAnalysis from './GapAnalysis';
 import RequirementsTree from './RequirementsTree';
+import ConfirmedFeaturesReport from './ConfirmedFeaturesReport';
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 340;
@@ -14,7 +15,73 @@ const CHAT_MAX = 620;
 const CHAT_DEFAULT = 420;
 
 const STORAGE_KEY = 'reqsense_session';
-const WELCOME_MESSAGE = 'Xin chào, tôi là Alex. Hãy mô tả ngắn gọn ý tưởng phần mềm của bạn, tôi sẽ quyết định khi nào cần dùng agent để phân tích sâu hơn.';
+
+const UI_TEXT = {
+  vi: {
+    welcome: 'Xin chào, tôi là Alex. Hãy mô tả ngắn gọn ý tưởng phần mềm của bạn, tôi sẽ quyết định khi nào cần dùng agent để phân tích sâu hơn.',
+    exchanges: count => `${count} lượt trao đổi`,
+    saved: 'Đã tự lưu',
+    newSession: 'Phiên mới',
+    restored: 'Đã khôi phục phiên trước',
+    send: 'Gửi',
+    selectedOptions: count => `Đã chọn ${count}`,
+    clearOptions: 'Bỏ chọn',
+    sendSelected: 'Gửi lựa chọn',
+    placeholder: 'Nhập câu trả lời... (Enter để gửi, Shift+Enter để xuống dòng)',
+    sendError: 'Không gửi được tin nhắn. Vui lòng thử lại.',
+    reportError: 'Không tạo được báo cáo. Vui lòng thử lại.',
+    reportCreated: 'Đã tạo báo cáo yêu cầu. Bạn có thể xem ở khung bên phải.',
+    refineText: 'Báo cáo đã được tạo. Tôi muốn bổ sung thêm thông tin để cải thiện nó. Bạn hãy hỏi tôi những gì còn thiếu nhé.',
+    emptyTitle: 'Báo cáo yêu cầu',
+    steps: [
+      'Mô tả ý tưởng phần mềm',
+      'Trả lời câu hỏi của Alex',
+      'Đạt đủ độ tin cậy',
+      'Tạo tài liệu đặc tả yêu cầu',
+    ],
+  },
+  en: {
+    welcome: 'Hi, I am Alex. Briefly describe your software idea and I will decide when deeper agent analysis is needed.',
+    exchanges: count => `${count} exchange${count !== 1 ? 's' : ''}`,
+    saved: 'Auto-saved',
+    newSession: 'New Session',
+    restored: 'Session restored from last time',
+    send: 'Send',
+    selectedOptions: count => `${count} selected`,
+    clearOptions: 'Clear',
+    sendSelected: 'Send selected',
+    placeholder: 'Type your answer... (Enter to send, Shift+Enter for newline)',
+    sendError: 'Failed to send message. Please try again.',
+    reportError: 'Failed to generate report. Please try again.',
+    reportCreated: 'The requirements report has been generated. You can review it in the right panel.',
+    refineText: 'The report has been generated. I want to add more details to improve it. Please ask me about what information is still missing.',
+    emptyTitle: 'Requirements Report',
+    steps: [
+      'Describe your software idea',
+      "Answer Alex's questions",
+      'Reach 75% confidence',
+      'Generate your specification',
+    ],
+  },
+};
+
+const VIETNAMESE_PATTERN = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+const VIETNAMESE_WORD_PATTERN = /\b(tôi|toi|mình|minh|bạn|ban|muốn|muon|cần|can|tính năng|tinh nang|báo cáo|bao cao|yêu cầu|yeu cau|phần mềm|phan mem|khách hàng|khach hang)\b/i;
+const ENGLISH_WORD_PATTERN = /\b(i|we|want|need|build|feature|report|requirement|software|app|user|customer|dashboard|payment|login|admin)\b/i;
+
+function detectMessageLanguage(text) {
+  if (!text || typeof text !== 'string') return null;
+  if (VIETNAMESE_PATTERN.test(text) || VIETNAMESE_WORD_PATTERN.test(text)) return 'vi';
+  if (ENGLISH_WORD_PATTERN.test(text)) return 'en';
+  return null;
+}
+
+function getInterfaceLanguage(messages, fallback = 'vi') {
+  const lastUserMessage = [...messages].reverse().find(
+    msg => msg.role === 'user' && msg.text !== 'GENERATE_REPORT'
+  );
+  return detectMessageLanguage(lastUserMessage?.text) || fallback || 'vi';
+}
 
 const ROLE_MAP = {
   developer:    { vi: 'Lập trình viên / Kỹ thuật', en: 'Developer / Technical person' },
@@ -59,6 +126,8 @@ function toRawJson(data) {
     confidence: data.confidence,
     currentTopic: data.currentTopic,
     coveredTopics: data.coveredTopics,
+    confirmedFeatures: data.confirmedFeatures || [],
+    skippedTopics: data.skippedTopics || [],
     options: data.options,
     readyForReport: data.readyForReport,
     agentTrace: data.agentTrace || [],
@@ -69,12 +138,15 @@ export default function ChatWindow({ userProfile }) {
   const [apiHistory, setApiHistory] = useState([]);
   const [displayMsgs, setDisplayMsgs] = useState([]);
   const [input, setInput] = useState('');
+  const [selectedOptions, setSelectedOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState(null);
   const [reportMeta, setReportMeta] = useState(null);
   const [error, setError] = useState(null);
   const [restored, setRestored] = useState(false);
   const [coveredTopics, setCoveredTopics] = useState([]);
+  const [confirmedFeatures, setConfirmedFeatures] = useState([]);
+  const [skippedTopics, setSkippedTopics] = useState([]);
   const [currentTopic, setCurrentTopic] = useState('');
   const [readyForReport, setReadyForReport] = useState(false);
   const [sidebarW, setSidebarW] = useState(SIDEBAR_DEFAULT);
@@ -95,6 +167,21 @@ export default function ChatWindow({ userProfile }) {
     () => calcConfidence(coveredTopics, exchangeCount),
     [coveredTopics, exchangeCount]
   );
+  const interfaceLanguage = useMemo(
+    () => getInterfaceLanguage(displayMsgs, userProfile?.language || 'vi'),
+    [displayMsgs, userProfile?.language]
+  );
+  const t = UI_TEXT[interfaceLanguage] || UI_TEXT.vi;
+
+  function buildReportMeta() {
+    return {
+      date: new Date().toLocaleString(interfaceLanguage === 'vi' ? 'vi-VN' : 'en-US'),
+      confidence,
+      topicsCount: coveredTopics.length,
+      exchanges: exchangeCount,
+      coveredTopics,
+    };
+  }
 
   function applyBA(data) {
     setCoveredTopics(prev => {
@@ -102,20 +189,37 @@ export default function ChatWindow({ userProfile }) {
       (data.coveredTopics || []).forEach(t => set.add(t));
       return [...set];
     });
+    if (Array.isArray(data.confirmedFeatures)) {
+      const byKey = new Map();
+      data.confirmedFeatures.forEach(feature => {
+        if (typeof feature === 'string' && feature.trim()) {
+          const clean = feature.trim();
+          byKey.set(clean.toLowerCase(), clean);
+        }
+      });
+      setConfirmedFeatures([...byKey.values()]);
+    }
+    if (Array.isArray(data.skippedTopics)) {
+      setSkippedTopics(data.skippedTopics);
+    }
     setCurrentTopic(data.currentTopic || '');
     if (data.readyForReport) setReadyForReport(true);
   }
 
   function startSession() {
+    const initialLanguage = userProfile?.language === 'en' ? 'en' : 'vi';
     setApiHistory([]);
     setDisplayMsgs([{
       role: 'model',
-      text: WELCOME_MESSAGE,
+      text: UI_TEXT[initialLanguage].welcome,
       options: null,
       topic: 'Project Overview',
       agentTrace: [],
     }]);
     setCoveredTopics([]);
+    setConfirmedFeatures([]);
+    setSkippedTopics([]);
+    setSelectedOptions([]);
     setCurrentTopic('');
     setReadyForReport(false);
     setReport(null);
@@ -135,6 +239,7 @@ export default function ChatWindow({ userProfile }) {
       { role: 'user', text: trimmed },
     ]);
     setInput('');
+    setSelectedOptions([]);
     setLoading(true);
     setError(null);
 
@@ -142,6 +247,21 @@ export default function ChatWindow({ userProfile }) {
 
     try {
       const data = await sendMessage(newHistory, false);
+      if (data.type === 'report') {
+        setApiHistory(newHistory);
+        setReport(data.content);
+        setReportMeta(buildReportMeta());
+        setDisplayMsgs(prev => [...prev, {
+          role: 'model',
+          text: t.reportCreated,
+          options: null,
+          topic: 'Report',
+          agentTrace: [],
+        }]);
+        fetchEvaluation(data.content);
+        return;
+      }
+
       setApiHistory([...newHistory, { role: 'model', text: toRawJson(data) }]);
       setDisplayMsgs(prev => [...prev, {
         role: 'model',
@@ -152,7 +272,7 @@ export default function ChatWindow({ userProfile }) {
       }]);
       applyBA(data);
     } catch (err) {
-      setError('Failed to send message. Please try again.');
+      setError(t.sendError);
       setDisplayMsgs(prev => prev.slice(0, -1));
     } finally {
       setLoading(false);
@@ -160,13 +280,7 @@ export default function ChatWindow({ userProfile }) {
   }
 
   async function generateReport() {
-    const meta = {
-      date: new Date().toLocaleString(),
-      confidence,
-      topicsCount: coveredTopics.length,
-      exchanges: exchangeCount,
-      coveredTopics,
-    };
+    const meta = buildReportMeta();
 
     setLoading(true);
     setError(null);
@@ -178,7 +292,7 @@ export default function ChatWindow({ userProfile }) {
       setReportMeta(meta);
       fetchEvaluation(data.content);
     } catch (err) {
-      setError('Failed to generate report. Please try again.');
+      setError(t.reportError);
     } finally {
       setLoading(false);
     }
@@ -189,6 +303,8 @@ export default function ChatWindow({ userProfile }) {
     initialized.current = false;
     setGapAnalysis(null);
     setEvaluation(null);
+    setConfirmedFeatures([]);
+    setSkippedTopics([]);
     startSession();
   }
 
@@ -199,17 +315,14 @@ export default function ChatWindow({ userProfile }) {
     setEvalLoading(false);
     setGapAnalysis(null);
     setRefineMode(true);
-    const refineText = userProfile?.language === 'vi'
-      ? 'Báo cáo đã được tạo. Tôi muốn bổ sung thêm thông tin để cải thiện nó. Bạn hãy hỏi tôi những gì còn thiếu nhé.'
-      : 'The report has been generated. I want to add more details to improve it. Please ask me about what information is still missing.';
-    await send(refineText);
+    await send(t.refineText);
   }
 
   async function fetchGapAnalysis() {
     setGapLoading(true);
     try {
       const data = await analyzeGaps(
-        apiHistory, coveredTopics, confidence, userProfile?.language ?? 'en'
+        apiHistory, coveredTopics, skippedTopics, confidence, interfaceLanguage
       );
       setGapAnalysis(data);
       setRefineMode(false);
@@ -220,7 +333,7 @@ export default function ChatWindow({ userProfile }) {
   async function fetchEvaluation(reportContent) {
     setEvalLoading(true);
     try {
-      const data = await evaluateReport(reportContent, userProfile?.language ?? 'en');
+      const data = await evaluateReport(reportContent, interfaceLanguage);
       setEvaluation(data);
     } catch (_) {}
     finally { setEvalLoading(false); }
@@ -232,7 +345,7 @@ export default function ChatWindow({ userProfile }) {
       fetchGapAnalysis();
       setRightTab('gaps');
     }
-  }, [readyForReport]);
+  }, [readyForReport, interfaceLanguage]);
 
   // Switch to report tab when report is generated
   useEffect(() => {
@@ -248,11 +361,11 @@ export default function ChatWindow({ userProfile }) {
   useEffect(() => {
     if (apiHistory.length > 1) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        apiHistory, displayMsgs, coveredTopics,
+        apiHistory, displayMsgs, coveredTopics, confirmedFeatures, skippedTopics,
         currentTopic, readyForReport, report,
       }));
     }
-  }, [apiHistory, displayMsgs, confidence, coveredTopics, currentTopic, readyForReport, report]);
+  }, [apiHistory, displayMsgs, confidence, coveredTopics, confirmedFeatures, skippedTopics, currentTopic, readyForReport, report]);
 
   // Initialize once
   useEffect(() => {
@@ -267,6 +380,8 @@ export default function ChatWindow({ userProfile }) {
           setApiHistory(p.apiHistory);
           setDisplayMsgs(p.displayMsgs || []);
           setCoveredTopics(p.coveredTopics || []);
+          setConfirmedFeatures(p.confirmedFeatures || []);
+          setSkippedTopics(p.skippedTopics || []);
           setCurrentTopic(p.currentTopic || '');
           setReadyForReport(p.readyForReport || false);
           setReport(p.report || null);
@@ -360,12 +475,33 @@ export default function ChatWindow({ userProfile }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      send(input);
+      send(buildAnswerText());
     }
   }
 
   const lastMsg = displayMsgs[displayMsgs.length - 1];
   const showOptions = !loading && lastMsg?.role === 'model' && lastMsg?.options?.length > 0;
+  const selectedOptionSet = useMemo(() => new Set(selectedOptions), [selectedOptions]);
+
+  useEffect(() => {
+    setSelectedOptions([]);
+  }, [lastMsg?.text]);
+
+  function toggleOption(option) {
+    setSelectedOptions(prev => (
+      prev.includes(option)
+        ? prev.filter(item => item !== option)
+        : [...prev, option]
+    ));
+  }
+
+  function buildAnswerText() {
+    const typed = input.trim();
+    if (selectedOptions.length === 0) return typed;
+
+    const choices = selectedOptions.join(', ');
+    return typed ? `${choices}\n${typed}` : choices;
+  }
 
   return (
     <div className="chat-window">
@@ -377,11 +513,11 @@ export default function ChatWindow({ userProfile }) {
           currentTopic={currentTopic}
         />
         <div className="session-meta">
-          <span>{exchangeCount} exchange{exchangeCount !== 1 ? 's' : ''}</span>
-          {apiHistory.length > 1 && <span className="saved-indicator">Auto-saved</span>}
+          <span>{t.exchanges(exchangeCount)}</span>
+          {apiHistory.length > 1 && <span className="saved-indicator">{t.saved}</span>}
         </div>
         <button className="new-session-btn" onClick={clearSession}>
-          New Session
+          {t.newSession}
         </button>
       </div>
 
@@ -399,7 +535,7 @@ export default function ChatWindow({ userProfile }) {
         </div>
 
         {restored && (
-          <div className="restored-banner">Session restored from last time</div>
+          <div className="restored-banner">{t.restored}</div>
         )}
 
         <div className="messages-list">
@@ -410,10 +546,37 @@ export default function ChatWindow({ userProfile }) {
           {showOptions && (
             <div className="option-chips">
               {lastMsg.options.map((opt, i) => (
-                <button key={i} className="option-chip" onClick={() => send(opt)}>
+                <button
+                  key={i}
+                  className={`option-chip ${selectedOptionSet.has(opt) ? 'selected' : ''}`}
+                  onClick={() => toggleOption(opt)}
+                  aria-pressed={selectedOptionSet.has(opt)}
+                  type="button"
+                >
                   {opt}
                 </button>
               ))}
+              {selectedOptions.length > 0 && (
+                <div className="option-selection-actions">
+                  <span className="option-selection-count">
+                    {t.selectedOptions(selectedOptions.length)}
+                  </span>
+                  <button
+                    className="option-selection-clear"
+                    onClick={() => setSelectedOptions([])}
+                    type="button"
+                  >
+                    {t.clearOptions}
+                  </button>
+                  <button
+                    className="option-selection-send"
+                    onClick={() => send(buildAnswerText())}
+                    type="button"
+                  >
+                    {t.sendSelected}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -452,16 +615,16 @@ export default function ChatWindow({ userProfile }) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your answer… or 📎 attach a document"
+              placeholder={t.placeholder}
               disabled={loading}
               rows={2}
             />
             <button
               className="send-btn"
-              onClick={() => send(input)}
-              disabled={loading || !input.trim()}
+              onClick={() => send(buildAnswerText())}
+              disabled={loading || (!input.trim() && selectedOptions.length === 0)}
             >
-              Send
+              {t.send}
             </button>
           </div>
         </div>
@@ -477,33 +640,37 @@ export default function ChatWindow({ userProfile }) {
             className={`panel-tab ${rightTab === 'tree' ? 'panel-tab-active' : ''}`}
             onClick={() => setRightTab('tree')}
           >
-            🌳 {userProfile?.language === 'vi' ? 'Cây yêu cầu' : 'Req. Tree'}
+            🌳 {interfaceLanguage === 'vi' ? 'Cây yêu cầu' : 'Req. Tree'}
           </button>
-          {readyForReport && (
-            <button
-              className={`panel-tab ${rightTab === 'gaps' ? 'panel-tab-active' : ''}`}
-              onClick={() => setRightTab('gaps')}
-            >
-              🔍 {userProfile?.language === 'vi' ? 'Phân tích' : 'Gap Analysis'}
-            </button>
-          )}
-          {report && (
-            <button
-              className={`panel-tab ${rightTab === 'report' ? 'panel-tab-active' : ''}`}
-              onClick={() => setRightTab('report')}
-            >
-              📄 {userProfile?.language === 'vi' ? 'Báo cáo' : 'Report'}
-            </button>
-          )}
+          <button
+            className={`panel-tab ${rightTab === 'gaps' ? 'panel-tab-active' : ''}`}
+            onClick={() => setRightTab('gaps')}
+          >
+            🔍 {interfaceLanguage === 'vi' ? 'Phân tích' : 'Gap Analysis'}
+          </button>
+          <button
+            className={`panel-tab ${rightTab === 'report' ? 'panel-tab-active' : ''}`}
+            onClick={() => setRightTab('report')}
+          >
+            📄 {interfaceLanguage === 'vi' ? 'Báo cáo' : 'Report'}
+          </button>
         </div>
 
         {/* Tab content */}
         {rightTab === 'tree' && (
-          <RequirementsTree
-            coveredTopics={coveredTopics}
-            currentTopic={currentTopic}
-            language={userProfile?.language}
-          />
+          <div className="live-report-panel">
+            <ConfirmedFeaturesReport
+              features={confirmedFeatures}
+              coveredTopics={coveredTopics}
+              currentTopic={currentTopic}
+              language={interfaceLanguage}
+            />
+            <RequirementsTree
+              coveredTopics={coveredTopics}
+              currentTopic={currentTopic}
+              language={interfaceLanguage}
+            />
+          </div>
         )}
 
         {rightTab === 'gaps' && (
@@ -514,7 +681,7 @@ export default function ChatWindow({ userProfile }) {
             onAskQuestion={(q) => send(q)}
             onReanalyze={fetchGapAnalysis}
             isRefineMode={refineMode}
-            language={userProfile?.language}
+            language={interfaceLanguage}
           />
         )}
 
@@ -524,19 +691,21 @@ export default function ChatWindow({ userProfile }) {
             meta={reportMeta}
             evaluation={evaluation}
             evalLoading={evalLoading}
-            language={userProfile?.language}
+            language={interfaceLanguage}
             onRefine={handleRefine}
           />
         )}
 
         {rightTab === 'report' && !report && (
           <div className="report-empty">
-            <h3>Requirements Report</h3>
+            <h3>{t.emptyTitle}</h3>
             <div className="steps">
-              <div className="step"><span>1</span>Describe your software idea</div>
-              <div className="step"><span>2</span>Answer Alex's questions</div>
-              <div className="step"><span>3</span>Watch the tree fill up</div>
-              <div className="step"><span>4</span>Generate your specification</div>
+              {t.steps.map((step, index) => (
+                <div className="step" key={step}>
+                  <span>{index + 1}</span>
+                  {step}
+                </div>
+              ))}
             </div>
           </div>
         )}

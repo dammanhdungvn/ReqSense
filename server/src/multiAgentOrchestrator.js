@@ -22,6 +22,71 @@ const AGENT_NAMES = [
 const SERPAPI_SEARCH_LIMIT = 5;
 const SERPAPI_QUERY_LIMIT = 3;
 
+const TOPIC_LABELS_VI = {
+  'Project Overview': 'tổng quan dự án',
+  'Target Users & Roles': 'người dùng và vai trò',
+  'Core Features & Workflows': 'tính năng và quy trình chính',
+  'Business Rules': 'quy tắc nghiệp vụ',
+  'Non-functional Requirements': 'yêu cầu phi chức năng',
+  'Integrations': 'tích hợp',
+  'Deployment & Infrastructure': 'triển khai và hạ tầng',
+  'Compliance & Regulations': 'tuân thủ và quy định',
+  'Timeline & Budget': 'thời gian và ngân sách',
+  'Success Criteria': 'tiêu chí thành công',
+};
+
+const VIETNAMESE_PATTERN = /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+const SKIP_REQUEST_PATTERN = /(bỏ qua|bo qua|bỏ bước|bo buoc|skip|next|tiếp theo|tiep theo|không trả lời|khong tra loi|không cần trả lời|khong can tra loi|chưa cần|chua can|để sau|de sau|không muốn trả lời|khong muon tra loi)/i;
+const REPORT_REQUEST_PATTERN = /(tao bao cao|xuat bao cao|lap bao cao|tao tai lieu|tao dac ta|generate report|create report|make report|export report|generate spec|create spec)/i;
+
+const FLEXIBLE_SURVEY_POLICY = `Survey behavior:
+- Do not force the customer to answer every survey topic before helping them.
+- If the customer asks to skip a topic, accept it, remember it as skipped, and move to the next useful topic.
+- If the customer asks to create/generate/export the report now, do not ask more questions first; the application will generate the report immediately.
+- Keep the tone helpful and concise.`;
+
+function isSkipRequest(value) {
+  return typeof value === 'string' && SKIP_REQUEST_PATTERN.test(value);
+}
+
+function isReportRequest(value) {
+  if (typeof value !== 'string') return false;
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+  return REPORT_REQUEST_PATTERN.test(normalized);
+}
+
+function isVietnameseText(value) {
+  return VIETNAMESE_PATTERN.test(value || '') || /\b(tôi|toi|mình|minh|bạn|ban|bỏ qua|bo qua)\b/i.test(value || '');
+}
+
+function makeSkipTransitionMessage(context, skippedTopic, nextTopic) {
+  if (isVietnameseText(context.lastUserMessage)) {
+    return `Đã bỏ qua phần **${TOPIC_LABELS_VI[skippedTopic] || skippedTopic}**. Tiếp theo, mình chuyển sang phần **${TOPIC_LABELS_VI[nextTopic] || nextTopic}** nhé. Bạn có thể chia sẻ thông tin chính cho phần này không?`;
+  }
+
+  return `Skipped **${skippedTopic}**. Next, let's move to **${nextTopic}**. Could you share the key information for this part?`;
+}
+
+function getNextRequirementTopic(currentTopic, coveredTopics = [], skippedTopics = []) {
+  const handled = new Set([
+    ...(Array.isArray(coveredTopics) ? coveredTopics : []),
+    ...(Array.isArray(skippedTopics) ? skippedTopics : []),
+  ]);
+  const currentIndex = Math.max(0, REQUIREMENT_AREAS.indexOf(currentTopic));
+
+  for (let offset = 1; offset <= REQUIREMENT_AREAS.length; offset += 1) {
+    const candidate = REQUIREMENT_AREAS[(currentIndex + offset) % REQUIREMENT_AREAS.length];
+    if (!handled.has(candidate)) return candidate;
+  }
+
+  return REQUIREMENT_AREAS.find(topic => !skippedTopics.includes(topic)) || 'Project Overview';
+}
+
 function safeJsonParse(value) {
   if (!value || typeof value !== 'string') return null;
 
@@ -52,6 +117,8 @@ function getPreviousAssistantState(messages) {
     confidence: Number(parsed?.confidence || 0),
     currentTopic: parsed?.currentTopic || '',
     coveredTopics: Array.isArray(parsed?.coveredTopics) ? parsed.coveredTopics : [],
+    confirmedFeatures: Array.isArray(parsed?.confirmedFeatures) ? parsed.confirmedFeatures : [],
+    skippedTopics: Array.isArray(parsed?.skippedTopics) ? parsed.skippedTopics : [],
     readyForReport: Boolean(parsed?.readyForReport),
   };
 }
@@ -106,14 +173,38 @@ async function runTextAgent(openai, { model, system, user, temperature = 0.4 }) 
   return completion.choices[0].message.content;
 }
 
-function normalizeStructuredResponse(questionPlan, gapAnalysis, previousState) {
+function uniqueList(values) {
+  const seen = new Set();
+  return (Array.isArray(values) ? values : [])
+    .filter(item => typeof item === 'string' && item.trim())
+    .map(item => item.trim())
+    .filter(item => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function normalizeStructuredResponse(questionPlan, gapAnalysis, previousState, analysis = null, context = {}) {
   const mergedTopics = new Set([
     ...previousState.coveredTopics,
     ...(Array.isArray(gapAnalysis.coveredTopics) ? gapAnalysis.coveredTopics : []),
     ...(Array.isArray(questionPlan.coveredTopics) ? questionPlan.coveredTopics : []),
   ]);
 
+  const skippedSet = new Set([
+    ...(Array.isArray(previousState.skippedTopics) ? previousState.skippedTopics : []),
+    ...(Array.isArray(gapAnalysis.skippedTopics) ? gapAnalysis.skippedTopics : []),
+    ...(Array.isArray(questionPlan.skippedTopics) ? questionPlan.skippedTopics : []),
+  ]);
+
+  if (context.skipRequested && REQUIREMENT_AREAS.includes(context.skipTopic)) {
+    skippedSet.add(context.skipTopic);
+  }
+
   const coveredTopics = [...mergedTopics].filter(topic => REQUIREMENT_AREAS.includes(topic));
+  const skippedTopics = [...skippedSet].filter(topic => REQUIREMENT_AREAS.includes(topic));
   const confidence = Math.max(
     previousState.confidence,
     Number(gapAnalysis.confidence || 0),
@@ -121,24 +212,44 @@ function normalizeStructuredResponse(questionPlan, gapAnalysis, previousState) {
     coveredTopics.length > 0 ? 5 : 0
   );
 
-  const currentTopic = REQUIREMENT_AREAS.includes(questionPlan.currentTopic)
+  let currentTopic = REQUIREMENT_AREAS.includes(questionPlan.currentTopic)
     ? questionPlan.currentTopic
     : gapAnalysis.currentTopic || 'Project Overview';
+
+  if (skippedTopics.includes(currentTopic)) {
+    currentTopic = getNextRequirementTopic(currentTopic, coveredTopics, skippedTopics);
+  }
 
   const options = Array.isArray(questionPlan.options) && questionPlan.options.length > 0
     ? questionPlan.options.slice(0, 4)
     : null;
 
-  if (options && !options.some(option => /something else/i.test(option))) {
-    options[options.length - 1] = 'Something else';
+  if (options && !options.some(option => /something else|khác/i.test(option))) {
+    options[options.length - 1] = VIETNAMESE_PATTERN.test(questionPlan.message || '')
+      ? 'Khác'
+      : 'Something else';
+  }
+
+  const confirmedFeatures = analysis && Array.isArray(analysis.confirmedFeatures)
+    ? uniqueList(analysis.confirmedFeatures)
+    : uniqueList(questionPlan.confirmedFeatures || previousState.confirmedFeatures || []);
+
+  let message = questionPlan.message || 'Thanks. Could you share a bit more detail about the project goal?';
+  let responseOptions = options;
+
+  if (context.skipRequested && skippedTopics.includes(context.skipTopic)) {
+    message = makeSkipTransitionMessage(context, context.skipTopic, currentTopic);
+    responseOptions = null;
   }
 
   return {
-    message: questionPlan.message || 'Thanks. Could you share a bit more detail about the project goal?',
+    message,
     confidence: Math.min(100, Math.round(confidence)),
     currentTopic,
     coveredTopics,
-    options,
+    confirmedFeatures,
+    skippedTopics,
+    options: responseOptions,
     readyForReport: Boolean(questionPlan.readyForReport || (confidence >= 75 && coveredTopics.length >= 6)),
   };
 }
@@ -148,6 +259,7 @@ function makeEmptyAnalysis() {
     domain: 'unknown',
     businessGoal: 'unknown',
     actors: [],
+    confirmedFeatures: [],
     mentionedFeatures: [],
     businessRules: [],
     nonFunctionalNeeds: [],
@@ -190,6 +302,7 @@ function makeEmptyGapAnalysis(previousState) {
     coverageByTopic: {},
     missingRequirements: [],
     priorityTopics: [],
+    skippedTopics: previousState.skippedTopics || [],
     confidence: previousState.confidence || 0,
     currentTopic: previousState.currentTopic || 'Project Overview',
     readyForReport: previousState.readyForReport || false,
@@ -532,7 +645,7 @@ Agent catalog:
 - Question Planning Agent: chooses the next 1-2 BA questions.
 
 Prefer direct response when the user is greeting, asking a simple UI/help question, correcting wording, or the turn does not add requirement content.
-Use specialized agents when the user provides new project requirements, answers elicitation questions, asks for requirement analysis, or when readiness/confidence should be updated.
+Use specialized agents when the user provides new project requirements, answers elicitation questions, asks to skip a requirement topic, asks for requirement analysis, or when readiness/confidence should be updated.
 Select Business Document Search Agent when the topic has a clear business domain, regulatory/process-heavy context, unfamiliar industry terms, or when external business documents would improve the next question.
 Return JSON only.`,
     user: `Previous assistant state:
@@ -540,6 +653,9 @@ ${JSON.stringify(context.previousState, null, 2)}
 
 Last customer message:
 ${context.lastUserMessage}
+
+Skip request detected: ${context.skipRequested ? 'yes' : 'no'}
+Topic requested to skip: ${context.skipTopic || 'none'}
 
 Conversation:
 ${context.conversationText}
@@ -563,8 +679,11 @@ async function runDirectResponse(openai, model, context) {
     temperature: 0.4,
     system: `You are Alex, a Senior Business Analyst.
 Answer directly without using specialized agents.
+${FLEXIBLE_SURVEY_POLICY}
 Reply in the same language as the latest customer message.
+All customer-facing fields, including message, options, and confirmedFeatures, must use that same language.
 Keep the existing requirement state unless the user clearly provides new requirement details.
+If the latest customer message asks to skip the current topic, acknowledge it briefly and move to the next unskipped requirement topic. Do not ask about the skipped topic again.
 If the latest message is the initial seed greeting, briefly greet and ask the user to describe their software idea.
 Return JSON only.`,
     user: `Requirement areas:
@@ -576,6 +695,9 @@ ${JSON.stringify(context.previousState, null, 2)}
 Last customer message:
 ${context.lastUserMessage}
 
+Skip request detected: ${context.skipRequested ? 'yes' : 'no'}
+Topic requested to skip: ${context.skipTopic || 'none'}
+
 Conversation:
 ${context.conversationText}
 
@@ -585,6 +707,8 @@ Return exactly this JSON shape:
   "confidence": ${context.previousState.confidence || 0},
   "currentTopic": "${context.previousState.currentTopic || 'Project Overview'}",
   "coveredTopics": ${JSON.stringify(context.previousState.coveredTopics || [])},
+  "confirmedFeatures": ${JSON.stringify(context.previousState.confirmedFeatures || [])},
+  "skippedTopics": ${JSON.stringify(context.previousState.skippedTopics || [])},
   "options": null,
   "readyForReport": ${context.previousState.readyForReport || false}
 }`,
@@ -598,6 +722,10 @@ async function runRequirementAnalysisAgent(openai, model, context) {
     system: `You are the Requirement Analysis Agent.
 Your job is to read the full customer conversation and extract the current requirement facts.
 Do not ask questions. Do not invent facts.
+confirmedFeatures must be the complete current list of software features explicitly requested or confirmed by the customer, not only newly added features.
+If the customer renames, changes, or removes a feature, update the complete current list accordingly.
+Do not keep removed features.
+Keep extracted confirmedFeatures in the same language as the latest customer message.
 Return JSON only.`,
     user: `Requirement areas:
 ${REQUIREMENT_AREAS.map((area, index) => `${index + 1}. ${area}`).join('\n')}
@@ -616,6 +744,7 @@ Return this JSON shape:
   "domain": "string or unknown",
   "businessGoal": "string or unknown",
   "actors": ["actor"],
+  "confirmedFeatures": ["complete current feature list explicitly requested or confirmed by the customer, written in the latest customer's language"],
   "mentionedFeatures": ["feature"],
   "businessRules": ["rule"],
   "nonFunctionalNeeds": ["need"],
@@ -721,12 +850,17 @@ Your job is to compare current requirements with expected domain knowledge.
 Score completion conservatively. Keep previous covered topics; never remove them.
 Only mark a topic covered when the customer gave real detail.
 Use external search results only to identify potential gaps and follow-up questions, not as confirmed facts.
+Do not mark skipped topics as covered unless the customer gave real detail.
+Do not prioritize or ask follow-up questions for skipped topics.
 Return JSON only.`,
     user: `Requirement areas:
 ${REQUIREMENT_AREAS.map((area, index) => `${index + 1}. ${area}`).join('\n')}
 
 Previous assistant state:
 ${JSON.stringify(context.previousState, null, 2)}
+
+Skip request detected: ${context.skipRequested ? 'yes' : 'no'}
+Topic requested to skip: ${context.skipTopic || 'none'}
 
 Requirement Analysis Agent output:
 ${JSON.stringify(analysis, null, 2)}
@@ -754,6 +888,7 @@ Return this JSON shape:
   },
   "missingRequirements": ["important missing item"],
   "priorityTopics": ["exact requirement area name in recommended next-question order"],
+  "skippedTopics": ["exact skipped requirement area name"],
   "confidence": 0,
   "currentTopic": "exact requirement area name",
   "readyForReport": false
@@ -768,11 +903,14 @@ async function runQuestionPlanningAgent(openai, model, context, analysis, resear
     temperature: 0.5,
     system: `You are the Question Planning Agent and customer-facing BA assistant named Alex.
 Use the outputs from the other agents to ask the next best 1-2 questions.
+${FLEXIBLE_SURVEY_POLICY}
 Reply in the same language as the latest customer message.
+All customer-facing fields, including message and options, must use that same language.
+If the latest customer message asks to skip a topic, acknowledge the skip and move to the next useful unskipped topic. Do not ask about the skipped topic again in this turn.
 If the latest customer message is only the seed greeting, greet briefly and ask for the software idea.
 Always acknowledge the latest real customer answer first with "✅" when there is one.
 Use Markdown bold for important terms.
-When options help, provide 3-4 concise options and make the final option "Something else".
+When options help, provide 3-4 concise options and make the final option mean "Something else" in the same language as the latest customer message.
 If external search results reveal domain-specific gaps, ask the customer to confirm them instead of asserting them as requirements.
 Return JSON only.`,
     user: `Requirement areas:
@@ -783,6 +921,9 @@ ${JSON.stringify(context.previousState, null, 2)}
 
 Last customer message:
 ${context.lastUserMessage}
+
+Skip request detected: ${context.skipRequested ? 'yes' : 'no'}
+Topic requested to skip: ${context.skipTopic || 'none'}
 
 Conversation:
 ${context.conversationText}
@@ -805,7 +946,8 @@ Return exactly this JSON shape:
   "confidence": 0,
   "currentTopic": "exact requirement area name",
   "coveredTopics": ["exact requirement area name"],
-  "options": ["Option A", "Option B", "Option C", "Something else"] or null,
+  "skippedTopics": ["exact skipped requirement area name"],
+  "options": ["Option A", "Option B", "Option C", "Something else or same-language equivalent"] or null,
   "readyForReport": false
 }`,
   });
@@ -824,9 +966,10 @@ async function runRequirementGeneratorAgent(
     model,
     system: `You are the Requirement Generator Agent.
 Create a professional Markdown requirements specification from the multi-agent analysis.
-Write in the same language used by the customer in the conversation.
-Mark explicitly stated items as ✅ **[Confirmed]**.
-Mark carefully inferred items as ⚠️ **[Inferred]**.
+Write in the same language as the latest non-command customer message in the conversation.
+Do not mix languages in headings, labels, or requirement items.
+Mark explicitly stated items as ✅ **[Confirmed]** in English or ✅ **[Đã xác nhận]** in Vietnamese.
+Mark carefully inferred items as ⚠️ **[Inferred]** in English or ⚠️ **[Suy luận]** in Vietnamese.
 Mark external search references as 🔎 **[Reference]** and keep them separate from confirmed requirements.
 Do not invent unsupported details.`,
     user: `Conversation:
@@ -874,15 +1017,22 @@ Create this Markdown report:
 ## Open Questions
 
 Each of the 10 numbered sections must include a completeness score like:
-> **Completeness: X/10** - short explanation`,
+> **Completeness: X/10** - short explanation
+
+If the report is Vietnamese, use:
+> **Độ đầy đủ: X/10** - giải thích ngắn`,
   });
 }
 
 async function runElicitationPipeline(openai, model, messages) {
+  const previousState = getPreviousAssistantState(messages);
+  const lastUserMessage = getLastUserMessage(messages);
   const context = {
     conversationText: buildConversationText(messages),
-    lastUserMessage: getLastUserMessage(messages),
-    previousState: getPreviousAssistantState(messages),
+    lastUserMessage,
+    previousState,
+    skipRequested: isSkipRequest(lastUserMessage),
+    skipTopic: previousState.currentTopic || 'Project Overview',
   };
 
   const routerDecision = await runAgentRouter(openai, model, context);
@@ -890,14 +1040,15 @@ async function runElicitationPipeline(openai, model, messages) {
 
   if (!routerDecision.useSpecializedAgents || executedAgents.length === 0) {
     const directResponse = await runDirectResponse(openai, model, context);
+    const analysis = await runRequirementAnalysisAgent(openai, model, context);
     const gapAnalysis = makeEmptyGapAnalysis(context.previousState);
 
     return {
-      ...normalizeStructuredResponse(directResponse, gapAnalysis, context.previousState),
+      ...normalizeStructuredResponse(directResponse, gapAnalysis, context.previousState, analysis, context),
       agentTrace: makeSelectedAgentTrace({
         routerDecision,
         executedAgents: [],
-        analysis: makeEmptyAnalysis(),
+        analysis,
         businessDocuments: makeEmptyBusinessDocuments(),
         research: makeEmptyResearch(),
         gapAnalysis,
@@ -943,7 +1094,7 @@ async function runElicitationPipeline(openai, model, messages) {
   );
 
   return {
-    ...normalizeStructuredResponse(questionPlan, gapAnalysis, context.previousState),
+    ...normalizeStructuredResponse(questionPlan, gapAnalysis, context.previousState, analysis, context),
     agentTrace: makeSelectedAgentTrace({
       routerDecision,
       executedAgents,
@@ -983,4 +1134,5 @@ async function generateRequirementReport(openai, model, messages) {
 module.exports = {
   runElicitationPipeline,
   generateRequirementReport,
+  isReportRequest,
 };

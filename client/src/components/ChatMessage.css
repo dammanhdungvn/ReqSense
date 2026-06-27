@@ -1,0 +1,190 @@
+.chat-message {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  animation: slideIn 0.25s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chat-message.user {
+  flex-direction: row-reverse;
+}
+
+/* ── Avatars ───────────────────────────────────────────── */
+.msg-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.alex-avatar {
+  background: linear-gradient(135deg, #1f6feb, #a371f7);
+  color: white;
+}
+
+.user-avatar {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  font-size: 9px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Content wrapper ───────────────────────────────────── */
+.msg-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-width: 84%;
+}
+
+.chat-message.user .msg-content {
+  align-items: flex-end;
+}
+
+/* ── Topic badge ───────────────────────────────────────── */
+.topic-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: #79c0ff;
+  background: rgba(88, 166, 255, 0.08);
+  border: 1px solid rgba(88, 166, 255, 0.2);
+  border-radius: 20px;
+  padding: 2px 9px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+/* ── Bubbles ───────────────────────────────────────────── */
+.msg-bubble {
+  padding: 11px 15px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  word-break: break-word;
+}
+
+/* Model bubble */
+.bubble-model {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-top-left-radius: 4px;
+  color: #c9d1d9;
+}
+
+/* User bubble */
+.bubble-user {
+  background: linear-gradient(135deg, #1f6feb, #388bfd);
+  color: #ffffff;
+  border-top-right-radius: 4px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(31, 111, 235, 0.25);
+}
+
+/* ── Acknowledgment paragraph (✅) ─────────────────────── */
+.msg-p {
+  margin: 0 0 8px;
+}
+
+.msg-p:last-child {
+  margin-bottom: 0;
+}
+
+.msg-ack {
+  color: #7ee787;
+  font-weight: 500;
+  padding: 6px 10px;
+  background: rgba(63, 185, 80, 0.07);
+  border-left: 2px solid rgba(63, 185, 80, 0.5);
+  border-radius: 0 6px 6px 0;
+  margin-left: -4px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+/* ── Inline elements ───────────────────────────────────── */
+.msg-strong {
+  color: #e6edf3;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+.msg-em {
+  color: #a371f7;
+  font-style: italic;
+}
+
+/* ── Lists ─────────────────────────────────────────────── */
+.msg-ul {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.msg-ol {
+  padding-left: 18px;
+  margin: 6px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.msg-li {
+  font-size: 13.5px;
+  color: #c9d1d9;
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.55;
+}
+
+.msg-ul .msg-li::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #388bfd;
+}
+
+/* ── Inline badges ─────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font);
+  vertical-align: middle;
+}
+
+.badge-confirmed {
+  background: rgba(63, 185, 80, 0.12);
+  color: #3fb950;
+  border: 1px solid rgba(63, 185, 80, 0.3);
+}
+
+.badge-inferred {
+  background: rgba(210, 153, 34, 0.12);
+  color: #d29922;
+  border: 1px solid rgba(210, 153, 34, 0.3);
+}

@@ -129,16 +129,16 @@ function TreeNode({ node, index, isCovered, isActive, language, isNew }) {
         <div className="rt-node-left">
           <span className="rt-node-num">{index + 1}</span>
           <span className="rt-status-dot">
-            {isActive  && <span className="rt-dot rt-dot-active" />}
-            {isCovered && !isActive && <span className="rt-dot rt-dot-covered">✓</span>}
+            {isActive            && <span className="rt-dot rt-dot-active" />}
+            {isCovered && !isActive && <span className="rt-dot rt-dot-covered" />}
             {!isCovered && !isActive && <span className="rt-dot rt-dot-pending" />}
           </span>
           <span className="rt-node-icon">{node.icon}</span>
           <span className="rt-node-label">{label}</span>
         </div>
         <div className="rt-node-right">
-          {isActive && <span className="rt-badge-active">{lang === 'vi' ? 'Đang hỏi' : 'In progress'}</span>}
-          {isCovered && !isActive && <span className="rt-badge-done">{lang === 'vi' ? 'Hoàn thành' : 'Covered'}</span>}
+          {isActive   && <span className="rt-badge rt-badge-active">{lang === 'vi' ? 'Đang hỏi' : 'In progress'}</span>}
+          {isCovered && !isActive && <span className="rt-badge rt-badge-done">{lang === 'vi' ? 'Đã phủ' : 'Covered'}</span>}
           <span className="rt-chevron">{expanded ? '▾' : '▸'}</span>
         </div>
       </button>

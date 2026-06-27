@@ -45,6 +45,57 @@ const FLEXIBLE_SURVEY_POLICY = `Survey behavior:
 - If the customer asks to create/generate/export the report now, do not ask more questions first; the application will generate the report immediately.
 - Keep the tone helpful and concise.`;
 
+const QUESTION_OPTION_POLICY = `Option behavior:
+- Only include options when they are direct answer choices for the exact customer-facing question in "message".
+- Every option must answer the same question. Do not mix choices from another requirement area.
+- Do not copy generic examples from Research Agent into options unless they directly answer the current question.
+- Keep options short, concrete, mutually selectable, and useful for multi-select.
+- If the question asks who/roles, options must be user roles or customer groups.
+- If the question asks features/workflows, options must be features or actions.
+- If the question asks integrations, options must be external systems or services.
+- If the question asks timeline/budget, options must be timeline or budget choices.
+- The final option must mean "Other" in the same language as the customer.`;
+
+const OPTION_FALLBACKS = {
+  vi: {
+    'Project Overview': ['Quản lý nội bộ', 'Bán hàng hoặc đặt hàng', 'Đặt lịch hoặc dịch vụ', 'Khác'],
+    'Target Users & Roles': ['Khách hàng', 'Nhân viên', 'Quản trị viên', 'Khác'],
+    'Core Features & Workflows': ['Đăng nhập và tài khoản', 'Tạo và quản lý dữ liệu', 'Thông báo và trạng thái', 'Khác'],
+    'Business Rules': ['Phê duyệt thủ công', 'Tự động kiểm tra điều kiện', 'Phân quyền theo vai trò', 'Khác'],
+    'Non-functional Requirements': ['Nhanh và ổn định', 'Bảo mật dữ liệu', 'Dễ dùng trên di động', 'Khác'],
+    Integrations: ['Thanh toán', 'Email hoặc SMS', 'Lịch hoặc CRM', 'Khác'],
+    'Deployment & Infrastructure': ['Web', 'Mobile', 'Cloud hoặc VPS', 'Khác'],
+    'Compliance & Regulations': ['Bảo vệ dữ liệu cá nhân', 'Lưu nhật ký thao tác', 'Phân quyền truy cập', 'Khác'],
+    'Timeline & Budget': ['MVP trong 2-4 tuần', 'Hoàn thành trong 1-3 tháng', 'Chưa xác định', 'Khác'],
+    'Success Criteria': ['Tăng số người dùng', 'Giảm thời gian xử lý', 'Tăng doanh thu hoặc đơn hàng', 'Khác'],
+  },
+  en: {
+    'Project Overview': ['Internal management', 'Sales or ordering', 'Booking or services', 'Other'],
+    'Target Users & Roles': ['Customers', 'Staff', 'Admins', 'Other'],
+    'Core Features & Workflows': ['Login and accounts', 'Create and manage records', 'Notifications and statuses', 'Other'],
+    'Business Rules': ['Manual approval', 'Automatic condition checks', 'Role-based permissions', 'Other'],
+    'Non-functional Requirements': ['Fast and stable', 'Secure data', 'Mobile friendly', 'Other'],
+    Integrations: ['Payments', 'Email or SMS', 'Calendar or CRM', 'Other'],
+    'Deployment & Infrastructure': ['Web', 'Mobile', 'Cloud or VPS', 'Other'],
+    'Compliance & Regulations': ['Personal data protection', 'Audit logs', 'Access permissions', 'Other'],
+    'Timeline & Budget': ['MVP in 2-4 weeks', 'Finish in 1-3 months', 'Not decided yet', 'Other'],
+    'Success Criteria': ['Increase users', 'Reduce processing time', 'Increase revenue or orders', 'Other'],
+  },
+};
+
+const OPTION_RELEVANCE_PATTERNS = {
+  'Project Overview': /(quản lý|quan ly|bán|ban|đặt|dat|dịch vụ|dich vu|nội bộ|noi bo|khách hàng|khach hang|app|web|sales|order|booking|service|internal|customer)/i,
+  'Target Users & Roles': /(người dùng|nguoi dung|khách|khach|nhân viên|nhan vien|admin|quản trị|quan tri|vai trò|vai tro|doanh nghiệp|doanh nghiep|tổ chức|to chuc|cá nhân|ca nhan|customer|staff|admin|role|business|organization|individual)/i,
+  'Core Features & Workflows': /(đăng nhập|dang nhap|tài khoản|tai khoan|tạo|tao|sửa|sua|xóa|xoa|quản lý|quan ly|tìm kiếm|tim kiem|thông báo|thong bao|trạng thái|trang thai|báo cáo|bao cao|lịch|lich|feature|login|account|create|manage|notification|status|workflow|report|calendar)/i,
+  'Business Rules': /(phê duyệt|phe duyet|tự động|tu dong|điều kiện|dieu kien|quy tắc|quy tac|phân quyền|phan quyen|vai trò|vai tro|hạn mức|han muc|approval|automatic|condition|rule|permission|limit|role)/i,
+  'Non-functional Requirements': /(bảo mật|bao mat|nhanh|ổn định|on dinh|hiệu năng|hieu nang|dễ dùng|de dung|di động|di dong|sao lưu|backup|tải|tai|secure|fast|stable|performance|mobile|usable|backup)/i,
+  Integrations: /(thanh toán|thanh toan|email|sms|lịch|lich|crm|api|google|zalo|webhook|payment|calendar|integration)/i,
+  'Deployment & Infrastructure': /(web|mobile|cloud|vps|server|hosting|ios|android|triển khai|trien khai|hạ tầng|ha tang|deploy|infrastructure)/i,
+  'Compliance & Regulations': /(dữ liệu|du lieu|bảo vệ|bao ve|audit|nhật ký|nhat ky|phân quyền|phan quyen|tuân thủ|tuan thu|quy định|quy dinh|data|privacy|log|permission|compliance|regulation)/i,
+  'Timeline & Budget': /(tuần|tuan|tháng|thang|mvp|ngân sách|ngan sach|chi phí|chi phi|deadline|chưa xác định|chua xac dinh|week|month|budget|cost|timeline|undecided)/i,
+  'Success Criteria': /(tăng|tang|giảm|giam|doanh thu|người dùng|nguoi dung|thời gian|thoi gian|tỉ lệ|ti le|kpi|hiệu quả|hieu qua|increase|reduce|revenue|user|time|rate|success|order)/i,
+};
+
 function isSkipRequest(value) {
   return typeof value === 'string' && SKIP_REQUEST_PATTERN.test(value);
 }
@@ -54,14 +105,23 @@ function isReportRequest(value) {
   const normalized = value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
     .toLowerCase();
   return REPORT_REQUEST_PATTERN.test(normalized);
 }
 
 function isVietnameseText(value) {
-  return VIETNAMESE_PATTERN.test(value || '') || /\b(tôi|toi|mình|minh|bạn|ban|bỏ qua|bo qua)\b/i.test(value || '');
+  if (typeof value !== 'string') return false;
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D')
+    .toLowerCase();
+
+  return VIETNAMESE_PATTERN.test(value)
+    || /\b(toi|minh|ban|bo qua|bao cao|yeu cau|phan mem|ung dung|dat lich|khach hang|tinh nang|muon|can|khong|co|la|cua|cho|hay)\b/i.test(normalized);
 }
 
 function makeSkipTransitionMessage(context, skippedTopic, nextTopic) {
@@ -105,6 +165,12 @@ function safeJsonParse(value) {
 
 function getLastUserMessage(messages) {
   return [...messages].reverse().find(
+    msg => msg.role === 'user' && msg.text !== 'GENERATE_REPORT' && !isReportRequest(msg.text)
+  )?.text || '';
+}
+
+function getLastCustomerMessage(messages) {
+  return [...messages].reverse().find(
     msg => msg.role === 'user' && msg.text !== 'GENERATE_REPORT'
   )?.text || '';
 }
@@ -125,7 +191,7 @@ function getPreviousAssistantState(messages) {
 
 function buildConversationText(messages) {
   return messages
-    .filter(msg => msg.text !== 'GENERATE_REPORT')
+    .filter(msg => msg.text !== 'GENERATE_REPORT' && !(msg.role === 'user' && isReportRequest(msg.text)))
     .map((msg, index) => {
       if (msg.role === 'user') {
         return `${index + 1}. Customer: ${msg.text}`;
@@ -186,6 +252,284 @@ function uniqueList(values) {
     });
 }
 
+function getResponseLanguage(message, context = {}) {
+  if (isVietnameseText(message) || isVietnameseText(context.lastUserMessage)) return 'vi';
+  return 'en';
+}
+
+function makeFallbackOptions(currentTopic, language) {
+  return (OPTION_FALLBACKS[language] || OPTION_FALLBACKS.vi)[currentTopic]
+    || OPTION_FALLBACKS[language]?.['Project Overview']
+    || OPTION_FALLBACKS.vi['Project Overview'];
+}
+
+function isOtherOption(option) {
+  return /(khác|khac|other|something else)/i.test(option || '');
+}
+
+function normalizeQuestionOptions(rawOptions, currentTopic, message, context = {}) {
+  const options = uniqueList(rawOptions).slice(0, 4);
+  if (options.length === 0) return null;
+
+  const language = getResponseLanguage(message, context);
+  const pattern = OPTION_RELEVANCE_PATTERNS[currentTopic];
+  const meaningfulOptions = options.filter(option => !isOtherOption(option));
+  const relevantCount = pattern
+    ? meaningfulOptions.filter(option => pattern.test(option)).length
+    : meaningfulOptions.length;
+
+  if (meaningfulOptions.length > 0 && relevantCount < Math.min(2, meaningfulOptions.length)) {
+    return [...makeFallbackOptions(currentTopic, language)];
+  }
+
+  const normalized = options.slice(0, 4);
+  const otherLabel = language === 'vi' ? 'Khác' : 'Other';
+
+  if (!normalized.some(isOtherOption)) {
+    if (normalized.length >= 4) normalized[3] = otherLabel;
+    else normalized.push(otherLabel);
+  } else {
+    const otherIndex = normalized.findIndex(isOtherOption);
+    normalized[otherIndex] = otherLabel;
+    if (otherIndex !== normalized.length - 1) {
+      normalized.splice(otherIndex, 1);
+      normalized.push(otherLabel);
+    }
+  }
+
+  return normalized;
+}
+
+function getReportLanguage(context = {}) {
+  return isVietnameseText(context.lastUserMessage) ? 'vi' : 'en';
+}
+
+function getRequirementReportTemplate(language) {
+  if (language === 'vi') {
+    return `# Báo cáo đặc tả yêu cầu
+
+## 0. Tóm tắt cho khách hàng
+- **Mục tiêu dự án:** nêu mục tiêu bằng ngôn ngữ dễ hiểu.
+- **Người dùng chính:** liệt kê nhóm người dùng hoặc vai trò đã biết.
+- **Giá trị mang lại:** giải thích hệ thống giúp khách hàng đạt điều gì.
+- **Phạm vi MVP:** liệt kê những phần nên có trong bản MVP.
+- **Điểm cần khách hàng duyệt:** liệt kê quyết định quan trọng cần xác nhận.
+
+## 1. Tổng quan dự án
+> **Độ đầy đủ: X/10** - giải thích ngắn vì sao chấm điểm này.
+- Bối cảnh
+- Mục tiêu nghiệp vụ
+- Phạm vi có làm
+- Phạm vi chưa làm hoặc chưa rõ
+- Giả định đang dùng
+
+## 2. Người dùng và vai trò
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+| Vai trò | Mục tiêu | Quyền chính | Ghi chú còn thiếu |
+|---|---|---|---|
+
+## 3. Tính năng và luồng chính
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+### 3.1 Tính năng đã xác nhận
+| Tính năng | Giá trị cho người dùng | Trạng thái | Bằng chứng |
+|---|---|---|---|
+
+### 3.2 Luồng nghiệp vụ chính
+Với mỗi luồng, viết theo dạng:
+1. Tác nhân bắt đầu hành động.
+2. Hệ thống xử lý.
+3. Hệ thống phản hồi kết quả.
+4. Trường hợp lỗi hoặc ngoại lệ nếu có.
+
+### 3.3 Câu chuyện người dùng
+Viết ít nhất 3 câu nếu đủ dữ liệu:
+- Là **[vai trò]**, tôi muốn **[hành động]**, để **[mục tiêu]**.
+
+### 3.4 Tiêu chí chấp nhận
+Với mỗi tính năng chính:
+- **Cho trước** bối cảnh.
+- **Khi** người dùng thao tác.
+- **Thì** hệ thống phải phản hồi như thế nào.
+
+## 4. Quy tắc nghiệp vụ
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+| Quy tắc | Mô tả | Khi nào áp dụng | Cần xác nhận |
+|---|---|---|---|
+
+## 5. Yêu cầu phi chức năng
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+Bao gồm nếu có dữ liệu:
+- Hiệu năng
+- Bảo mật
+- Phân quyền
+- Độ ổn định
+- Khả năng mở rộng
+- Trải nghiệm người dùng
+
+## 6. Tích hợp
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+| Hệ thống tích hợp | Mục đích | Dữ liệu trao đổi | Trạng thái |
+|---|---|---|---|
+
+## 7. Dữ liệu và mô hình thông tin
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+| Đối tượng dữ liệu | Trường dữ liệu dự kiến | Ai tạo/sửa | Ghi chú |
+|---|---|---|---|
+
+## 8. Triển khai và hạ tầng
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+- Nền tảng triển khai dự kiến
+- Môi trường cần có
+- Yêu cầu vận hành
+- Giám sát và sao lưu nếu có
+
+## 9. Tuân thủ và quy định
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+- Dữ liệu nhạy cảm
+- Quyền truy cập
+- Nhật ký thao tác
+- Quy định pháp lý cần kiểm tra
+
+## 10. Thời gian, ngân sách và tiêu chí thành công
+> **Độ đầy đủ: X/10** - giải thích ngắn.
+### Thời gian và ngân sách
+- Mốc MVP
+- Mốc hoàn thiện
+- Ràng buộc ngân sách nếu có
+
+### Tiêu chí thành công
+| Tiêu chí | Cách đo | Mức đạt kỳ vọng |
+|---|---|---|
+
+## 11. Rủi ro, giả định và câu hỏi mở
+### Rủi ro
+| Rủi ro | Ảnh hưởng | Cách giảm thiểu |
+|---|---|---|
+
+### Giả định
+- Liệt kê giả định đang dùng khi thiếu thông tin.
+
+### Câu hỏi mở cần khách hàng trả lời
+- Sắp xếp câu hỏi theo mức ưu tiên cao đến thấp.
+
+## 12. Khuyến nghị bước tiếp theo
+- Những câu hỏi nên hỏi tiếp.
+- Những tài liệu hoặc dữ liệu khách hàng nên cung cấp.
+- Những phần có thể bắt đầu thiết kế ngay.`;
+  }
+
+  return `# Requirements Specification Report
+
+## 0. Customer Review Summary
+- **Project goal:** explain the goal in plain language.
+- **Primary users:** list known user groups or roles.
+- **Business value:** explain what the system helps the customer achieve.
+- **MVP scope:** list what should be included in the first version.
+- **Approval points:** list key decisions the customer should confirm.
+
+## 1. Project Overview
+> **Completeness: X/10** - short explanation.
+- Context
+- Business goals
+- In scope
+- Out of scope or unclear
+- Working assumptions
+
+## 2. Target Users & Roles
+> **Completeness: X/10** - short explanation.
+| Role | Goal | Main permissions | Missing notes |
+|---|---|---|---|
+
+## 3. Core Features & Workflows
+> **Completeness: X/10** - short explanation.
+### 3.1 Confirmed Features
+| Feature | User value | Status | Evidence |
+|---|---|---|---|
+
+### 3.2 Main Business Workflows
+For each workflow:
+1. Actor starts the action.
+2. System processes it.
+3. System returns a result.
+4. Error or exception path if known.
+
+### 3.3 User Stories
+Write at least 3 stories if enough data exists:
+- As a **[role]**, I want **[action]**, so that **[goal]**.
+
+### 3.4 Acceptance Criteria
+For each main feature:
+- **Given** the context.
+- **When** the user acts.
+- **Then** the system responds.
+
+## 4. Business Rules
+> **Completeness: X/10** - short explanation.
+| Rule | Description | Applies when | Needs confirmation |
+|---|---|---|---|
+
+## 5. Non-functional Requirements
+> **Completeness: X/10** - short explanation.
+Cover when supported:
+- Performance
+- Security
+- Permissions
+- Reliability
+- Scalability
+- User experience
+
+## 6. Integrations
+> **Completeness: X/10** - short explanation.
+| Integrated system | Purpose | Data exchanged | Status |
+|---|---|---|---|
+
+## 7. Data & Information Model
+> **Completeness: X/10** - short explanation.
+| Data object | Expected fields | Created/edited by | Notes |
+|---|---|---|---|
+
+## 8. Deployment & Infrastructure
+> **Completeness: X/10** - short explanation.
+- Target platforms
+- Required environments
+- Operations needs
+- Monitoring and backup if known
+
+## 9. Compliance & Regulations
+> **Completeness: X/10** - short explanation.
+- Sensitive data
+- Access rights
+- Audit logs
+- Regulations to verify
+
+## 10. Timeline, Budget & Success Criteria
+> **Completeness: X/10** - short explanation.
+### Timeline & Budget
+- MVP milestone
+- Full release milestone
+- Budget constraints if known
+
+### Success Criteria
+| Criterion | Measurement | Target |
+|---|---|---|
+
+## 11. Risks, Assumptions & Open Questions
+### Risks
+| Risk | Impact | Mitigation |
+|---|---|---|
+
+### Assumptions
+- List assumptions used when information is missing.
+
+### Open Questions
+- Sort questions from highest to lowest priority.
+
+## 12. Recommended Next Steps
+- Questions to ask next.
+- Documents or data the customer should provide.
+- Areas ready to start design.`;
+}
+
 function normalizeStructuredResponse(questionPlan, gapAnalysis, previousState, analysis = null, context = {}) {
   const mergedTopics = new Set([
     ...previousState.coveredTopics,
@@ -220,9 +564,12 @@ function normalizeStructuredResponse(questionPlan, gapAnalysis, previousState, a
     currentTopic = getNextRequirementTopic(currentTopic, coveredTopics, skippedTopics);
   }
 
-  const options = Array.isArray(questionPlan.options) && questionPlan.options.length > 0
-    ? questionPlan.options.slice(0, 4)
-    : null;
+  const options = normalizeQuestionOptions(
+    questionPlan.options,
+    currentTopic,
+    questionPlan.message || '',
+    context
+  );
 
   if (options && !options.some(option => /something else|khác/i.test(option))) {
     options[options.length - 1] = VIETNAMESE_PATTERN.test(questionPlan.message || '')
@@ -904,6 +1251,7 @@ async function runQuestionPlanningAgent(openai, model, context, analysis, resear
     system: `You are the Question Planning Agent and customer-facing BA assistant named Alex.
 Use the outputs from the other agents to ask the next best 1-2 questions.
 ${FLEXIBLE_SURVEY_POLICY}
+${QUESTION_OPTION_POLICY}
 Reply in the same language as the latest customer message.
 All customer-facing fields, including message and options, must use that same language.
 If the latest customer message asks to skip a topic, acknowledge the skip and move to the next useful unskipped topic. Do not ask about the skipped topic again in this turn.
@@ -962,10 +1310,25 @@ async function runRequirementGeneratorAgent(
   gapAnalysis,
   businessDocuments = makeEmptyBusinessDocuments()
 ) {
+  const reportLanguage = getReportLanguage(context);
+  const languageName = reportLanguage === 'vi' ? 'Vietnamese' : 'English';
+  const confirmedLabel = reportLanguage === 'vi' ? '[Đã xác nhận]' : '[Confirmed]';
+  const inferredLabel = reportLanguage === 'vi' ? '[Suy luận]' : '[Inferred]';
+  const referenceLabel = reportLanguage === 'vi' ? '[Tham khảo]' : '[Reference]';
+  const template = getRequirementReportTemplate(reportLanguage);
+
   return runTextAgent(openai, {
     model,
+    temperature: 0.25,
     system: `You are the Requirement Generator Agent.
 Create a professional Markdown requirements specification from the multi-agent analysis.
+The report language is ${languageName}. All headings, table headers, labels, explanations, open questions, and recommendations must be in ${languageName}.
+Do not use English headings in a Vietnamese report. Do not mix languages except unavoidable acronyms such as API, MVP, KPI, CRM, GDPR.
+When using an acronym, briefly explain it in the report language the first time it appears.
+The report must be useful for both customer review and BA/developer implementation.
+Make the report detailed enough for an MVP handoff: include tables, user stories, acceptance criteria, business rules, data needs, risks, assumptions, and next steps.
+Never place inferred or common best-practice features in confirmed scope unless they are marked with ⚠️ **${inferredLabel}**.
+Keep confirmed scope separate from suggested scope.
 Write in the same language as the latest non-command customer message in the conversation.
 Do not mix languages in headings, labels, or requirement items.
 Mark explicitly stated items as ✅ **[Confirmed]** in English or ✅ **[Đã xác nhận]** in Vietnamese.
@@ -974,6 +1337,13 @@ Mark external search references as 🔎 **[Reference]** and keep them separate f
 Do not invent unsupported details.`,
     user: `Conversation:
 ${context.conversationText}
+
+Latest customer language: ${languageName}
+Latest customer message:
+${context.lastUserMessage || 'none'}
+
+Previous assistant state:
+${JSON.stringify(context.previousState, null, 2)}
 
 Requirement Analysis Agent output:
 ${JSON.stringify(analysis, null, 2)}
@@ -987,40 +1357,19 @@ ${JSON.stringify(businessDocuments, null, 2)}
 Gap Analysis Agent output:
 ${JSON.stringify(gapAnalysis, null, 2)}
 
-Create this Markdown report:
-# Requirements Specification Report
+Use this exact report structure and fill every section with the best supported content:
+${template}
 
-## Executive Summary
-
-## 1. Project Overview
-
-## 2. Target Users & Roles
-
-## 3. Core Features & Workflows
-
-## 4. Business Rules
-
-## 5. Non-functional Requirements
-
-## 6. Integrations
-
-## 7. Deployment & Infrastructure
-
-## 8. Compliance & Regulations
-
-## 9. Timeline & Budget
-
-## 10. Success Criteria
-
-## External References
-
-## Open Questions
-
-Each of the 10 numbered sections must include a completeness score like:
-> **Completeness: X/10** - short explanation
-
-If the report is Vietnamese, use:
-> **Độ đầy đủ: X/10** - giải thích ngắn`,
+Quality rules before returning:
+- Keep the whole report in ${languageName}.
+- Each numbered requirement section must include the required completeness block.
+- Every confirmed requirement must include ✅ **${confirmedLabel}**.
+- Every inferred item must include ⚠️ **${inferredLabel}**.
+- External references must be marked as 🔎 **${referenceLabel}** and must stay separate from confirmed requirements.
+- If evidence is weak, say so clearly instead of making the report look complete.
+- Include at least 5 prioritized open questions unless the conversation is already complete.
+- Return Markdown only. Do not wrap the report in JSON.
+`,
   });
 }
 
@@ -1110,7 +1459,7 @@ async function runElicitationPipeline(openai, model, messages) {
 async function generateRequirementReport(openai, model, messages) {
   const context = {
     conversationText: buildConversationText(messages),
-    lastUserMessage: getLastUserMessage(messages),
+    lastUserMessage: getLastUserMessage(messages) || getLastCustomerMessage(messages),
     previousState: getPreviousAssistantState(messages),
   };
 

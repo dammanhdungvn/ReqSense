@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { sendMessage } from '../api';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { sendMessage, analyzeGaps, evaluateReport } from '../api';
 import ChatMessage from './ChatMessage';
 import ConfidenceMeter from './ConfidenceMeter';
 import AnalysisResult from './AnalysisResult';
+import GapAnalysis from './GapAnalysis';
 
 const SIDEBAR_MIN = 160;
 const SIDEBAR_MAX = 340;
@@ -39,6 +40,18 @@ function buildSeedMsg(profile) {
   return `[PROFILE: language=${langLabel} | role=${role} | experience=${exp}]\n${greeting}`;
 }
 
+/**
+ * Confidence tính từ dữ liệu thực — độc lập với AI:
+ * - Mỗi topic đã phủ: +9 điểm  (10 topics → 90 điểm)
+ * - Mật độ trao đổi:  +0.5 điểm / lượt user (tối đa +10)
+ * Kết quả: 5 (khởi đầu) → 100 (phủ hết + nhiều trao đổi)
+ */
+function calcConfidence(coveredTopics, exchanges) {
+  const topicPts   = coveredTopics.length * 9;
+  const densityPts = Math.min(10, Math.floor(exchanges * 0.5));
+  return Math.min(100, 5 + topicPts + densityPts);
+}
+
 function toRawJson(data) {
   return JSON.stringify({
     message: data.message,
@@ -60,18 +73,26 @@ export default function ChatWindow({ userProfile }) {
   const [reportMeta, setReportMeta] = useState(null);
   const [error, setError] = useState(null);
   const [restored, setRestored] = useState(false);
-  const [confidence, setConfidence] = useState(0);
   const [coveredTopics, setCoveredTopics] = useState([]);
   const [currentTopic, setCurrentTopic] = useState('');
   const [readyForReport, setReadyForReport] = useState(false);
   const [sidebarW, setSidebarW] = useState(SIDEBAR_DEFAULT);
   const [chatW, setChatW] = useState(CHAT_DEFAULT);
+  const [gapAnalysis, setGapAnalysis] = useState(null);
+  const [gapLoading, setGapLoading] = useState(false);
+  const [evaluation, setEvaluation] = useState(null);
+  const [evalLoading, setEvalLoading] = useState(false);
 
   const messagesEndRef = useRef(null);
   const initialized = useRef(false);
 
+  const exchangeCount = displayMsgs.filter(m => m.role === 'user').length;
+  const confidence = useMemo(
+    () => calcConfidence(coveredTopics, exchangeCount),
+    [coveredTopics, exchangeCount]
+  );
+
   function applyBA(data) {
-    setConfidence(prev => Math.max(prev, data.confidence ?? 0));
     setCoveredTopics(prev => {
       const set = new Set(prev);
       (data.coveredTopics || []).forEach(t => set.add(t));
@@ -90,7 +111,6 @@ export default function ChatWindow({ userProfile }) {
       topic: 'Project Overview',
       agentTrace: [],
     }]);
-    setConfidence(0);
     setCoveredTopics([]);
     setCurrentTopic('');
     setReadyForReport(false);
@@ -140,7 +160,7 @@ export default function ChatWindow({ userProfile }) {
       date: new Date().toLocaleString(),
       confidence,
       topicsCount: coveredTopics.length,
-      exchanges: displayMsgs.filter(m => m.role === 'user').length,
+      exchanges: exchangeCount,
       coveredTopics,
     };
 
@@ -152,6 +172,7 @@ export default function ChatWindow({ userProfile }) {
       const data = await sendMessage(messages, true);
       setReport(data.content);
       setReportMeta(meta);
+      fetchEvaluation(data.content);
     } catch (err) {
       setError('Failed to generate report. Please try again.');
     } finally {
@@ -162,8 +183,37 @@ export default function ChatWindow({ userProfile }) {
   function clearSession() {
     localStorage.removeItem(STORAGE_KEY);
     initialized.current = false;
+    setGapAnalysis(null);
+    setEvaluation(null);
     startSession();
   }
+
+  async function fetchGapAnalysis() {
+    setGapLoading(true);
+    try {
+      const data = await analyzeGaps(
+        apiHistory, coveredTopics, confidence, userProfile?.language ?? 'en'
+      );
+      setGapAnalysis(data);
+    } catch (_) {}
+    finally { setGapLoading(false); }
+  }
+
+  async function fetchEvaluation(reportContent) {
+    setEvalLoading(true);
+    try {
+      const data = await evaluateReport(reportContent, userProfile?.language ?? 'en');
+      setEvaluation(data);
+    } catch (_) {}
+    finally { setEvalLoading(false); }
+  }
+
+  // Trigger gap analysis when readyForReport
+  useEffect(() => {
+    if (readyForReport && !gapAnalysis && !gapLoading && apiHistory.length > 1) {
+      fetchGapAnalysis();
+    }
+  }, [readyForReport]);
 
   // Auto-scroll
   useEffect(() => {
@@ -174,7 +224,7 @@ export default function ChatWindow({ userProfile }) {
   useEffect(() => {
     if (apiHistory.length > 1) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        apiHistory, displayMsgs, confidence, coveredTopics,
+        apiHistory, displayMsgs, coveredTopics,
         currentTopic, readyForReport, report,
       }));
     }
@@ -192,7 +242,6 @@ export default function ChatWindow({ userProfile }) {
         if (p.apiHistory?.length > 1) {
           setApiHistory(p.apiHistory);
           setDisplayMsgs(p.displayMsgs || []);
-          setConfidence(p.confidence || 0);
           setCoveredTopics(p.coveredTopics || []);
           setCurrentTopic(p.currentTopic || '');
           setReadyForReport(p.readyForReport || false);
@@ -249,7 +298,6 @@ export default function ChatWindow({ userProfile }) {
 
   const lastMsg = displayMsgs[displayMsgs.length - 1];
   const showOptions = !loading && lastMsg?.role === 'model' && lastMsg?.options?.length > 0;
-  const exchangeCount = displayMsgs.filter(m => m.role === 'user').length;
 
   return (
     <div className="chat-window">
@@ -350,7 +398,21 @@ export default function ChatWindow({ userProfile }) {
       {/* ── Report panel ── */}
       <div className="report-panel">
         {report ? (
-          <AnalysisResult content={report} meta={reportMeta} />
+          <AnalysisResult
+            content={report}
+            meta={reportMeta}
+            evaluation={evaluation}
+            evalLoading={evalLoading}
+            language={userProfile?.language}
+          />
+        ) : readyForReport ? (
+          <GapAnalysis
+            data={gapAnalysis}
+            loading={gapLoading}
+            onGenerate={generateReport}
+            onAskQuestion={(q) => setInput(q)}
+            language={userProfile?.language}
+          />
         ) : (
           <div className="report-empty">
             <h3>Requirements Report</h3>

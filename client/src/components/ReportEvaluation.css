@@ -1,0 +1,364 @@
+.re-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+}
+
+.re-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #30363d;
+  border-top-color: #58a6ff;
+  border-radius: 50%;
+  animation: re-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes re-spin { to { transform: rotate(360deg); } }
+
+.re-loading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.re-loading-text span:first-child {
+  font-size: 13px;
+  color: #c9d1d9;
+}
+
+.re-loading-sub {
+  font-size: 11px;
+  color: #656d76;
+}
+
+/* ── Container ─────────────────────────────────────────── */
+.report-evaluation {
+  border: 1px solid #30363d;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #161b22;
+  margin-bottom: 4px;
+}
+
+/* ── Toolbar ───────────────────────────────────────────── */
+.re-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.re-toolbar:hover { background: #1c2128; }
+
+.re-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.re-toolbar-icon { font-size: 16px; }
+
+.re-toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e6edf3;
+}
+
+.re-overall-pill {
+  padding: 2px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.re-toggle {
+  font-size: 11px;
+  color: #656d76;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font);
+  pointer-events: none;
+}
+
+/* ── Body ──────────────────────────────────────────────── */
+.re-body {
+  padding: 16px;
+  border-top: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Overall card ──────────────────────────────────────── */
+.re-overall-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: #1c2128;
+  border-radius: 8px;
+}
+
+.re-overall-score {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.re-overall-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.re-overall-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #656d76;
+}
+
+.re-overall-track {
+  height: 6px;
+  background: #21262d;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.re-overall-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.6s ease;
+}
+
+.re-rubric-note {
+  font-size: 11px;
+  color: #484f58;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Dimensions ────────────────────────────────────────── */
+.re-dimensions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.re-dimension {
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.re-dim-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: #1c2128;
+  border: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.re-dim-header:hover { background: #21262d; }
+
+.re-dim-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.re-dim-icon { font-size: 13px; }
+
+.re-dim-label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #c9d1d9;
+}
+
+.re-dim-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.re-dim-track {
+  width: 64px;
+  height: 4px;
+  background: #30363d;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.re-dim-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+.re-dim-score {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: right;
+}
+
+.re-dim-chevron {
+  font-size: 10px;
+  color: #484f58;
+  width: 10px;
+}
+
+/* ── Dimension detail (expanded) ───────────────────────── */
+.re-dim-detail {
+  padding: 12px 14px;
+  background: #0d1117;
+  border-top: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.re-dim-explanation {
+  font-size: 12.5px;
+  color: #c9d1d9;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.re-dim-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.re-dim-evidence-label,
+.re-dim-improvement-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #58a6ff;
+}
+
+.re-dim-quote {
+  margin: 0;
+  padding: 8px 12px;
+  background: #161b22;
+  border-left: 3px solid #30363d;
+  border-radius: 0 6px 6px 0;
+  font-size: 12px;
+  color: #8b949e;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.re-dim-improvement {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.re-dim-improvement-label { color: #d29922; }
+
+.re-dim-improvement-text {
+  margin: 0;
+  font-size: 12.5px;
+  color: #c9d1d9;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: rgba(210, 153, 34, 0.06);
+  border-left: 3px solid rgba(210, 153, 34, 0.4);
+  border-radius: 0 6px 6px 0;
+}
+
+/* ── Feedback sections ─────────────────────────────────── */
+.re-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.re-section {
+  padding: 12px 14px;
+  border-radius: 8px;
+}
+
+.re-strengths {
+  background: rgba(63, 185, 80, 0.06);
+  border: 1px solid rgba(63, 185, 80, 0.2);
+}
+
+.re-gaps {
+  background: rgba(210, 153, 34, 0.06);
+  border: 1px solid rgba(210, 153, 34, 0.2);
+}
+
+.re-section-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: #e6edf3;
+}
+
+.re-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.re-list li {
+  font-size: 12.5px;
+  color: #c9d1d9;
+  padding-left: 12px;
+  position: relative;
+  line-height: 1.5;
+}
+
+.re-list li::before {
+  content: '–';
+  position: absolute;
+  left: 0;
+  color: #656d76;
+}
+
+/* ── Verdict ───────────────────────────────────────────── */
+.re-verdict {
+  font-size: 12.5px;
+  color: #8b949e;
+  padding: 10px 14px;
+  background: #1c2128;
+  border-radius: 8px;
+  line-height: 1.6;
+}
+
+.re-verdict-label {
+  font-weight: 700;
+  color: #c9d1d9;
+}

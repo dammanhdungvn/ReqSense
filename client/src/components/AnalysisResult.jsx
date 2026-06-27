@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Download, Printer } from 'lucide-react';
+import ReportEvaluation from './ReportEvaluation';
 import './AnalysisResult.css';
 
 function extractText(children) {
@@ -71,7 +72,7 @@ function MetaCard({ meta }) {
   );
 }
 
-export default function AnalysisResult({ content, meta }) {
+export default function AnalysisResult({ content, meta, evaluation, evalLoading, language }) {
   function downloadMarkdown() {
     const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -103,6 +104,10 @@ export default function AnalysisResult({ content, meta }) {
 
       <div className="report-body">
         {meta && <MetaCard meta={meta} />}
+
+        {(evaluation || evalLoading) && (
+          <ReportEvaluation data={evaluation} loading={evalLoading} language={language} />
+        )}
 
         <div className="report-content">
           <ReactMarkdown

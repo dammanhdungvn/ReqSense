@@ -11,8 +11,32 @@ const CHAT_MIN = 300;
 const CHAT_MAX = 620;
 const CHAT_DEFAULT = 420;
 
-const SEED_MSG = 'Hello, I want to start a requirement consultation.';
 const STORAGE_KEY = 'reqsense_session';
+
+const ROLE_MAP = {
+  developer:    { vi: 'Lập trình viên / Kỹ thuật', en: 'Developer / Technical person' },
+  pm:           { vi: 'Product Manager / Designer', en: 'Product Manager / Designer' },
+  business:     { vi: 'Chủ doanh nghiệp / Startup founder', en: 'Business Owner / Startup founder' },
+  nontechnical: { vi: 'Người không chuyên kỹ thuật', en: 'Non-technical stakeholder' },
+};
+
+const EXP_MAP = {
+  experienced: { vi: 'Đã có nhiều kinh nghiệm', en: 'Very experienced' },
+  some:        { vi: 'Đã làm một vài dự án', en: 'Some experience' },
+  first:       { vi: 'Lần đầu tiên', en: 'First time' },
+};
+
+function buildSeedMsg(profile) {
+  if (!profile) return 'Hello, I want to start a requirement consultation.';
+  const lang = profile.language === 'vi' ? 'vi' : 'en';
+  const role = ROLE_MAP[profile.role]?.[lang] ?? profile.role;
+  const exp  = EXP_MAP[profile.experience]?.[lang] ?? profile.experience;
+  const langLabel = profile.language === 'vi' ? 'Vietnamese' : 'English';
+  const greeting  = profile.language === 'vi'
+    ? 'Xin chào, tôi muốn bắt đầu tư vấn yêu cầu phần mềm.'
+    : 'Hello, I want to start a requirement consultation.';
+  return `[PROFILE: language=${langLabel} | role=${role} | experience=${exp}]\n${greeting}`;
+}
 
 function toRawJson(data) {
   return JSON.stringify({
@@ -25,7 +49,7 @@ function toRawJson(data) {
   });
 }
 
-export default function ChatWindow() {
+export default function ChatWindow({ userProfile }) {
   const [apiHistory, setApiHistory] = useState([]);
   const [displayMsgs, setDisplayMsgs] = useState([]);
   const [input, setInput] = useState('');
@@ -67,7 +91,7 @@ export default function ChatWindow() {
     setError(null);
     setLoading(true);
 
-    const seedMsg = { role: 'user', text: SEED_MSG };
+    const seedMsg = { role: 'user', text: buildSeedMsg(userProfile) };
 
     try {
       const data = await sendMessage([seedMsg], false);

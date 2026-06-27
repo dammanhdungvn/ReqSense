@@ -56,6 +56,20 @@ const QUESTION_OPTION_POLICY = `Option behavior:
 - If the question asks timeline/budget, options must be timeline or budget choices.
 - The final option must mean "Other" in the same language as the customer.`;
 
+const DETAILED_REPORT_POLICY = `Detailed report quality policy:
+- Write the report as a practical handoff document, not a short chat summary.
+- Separate facts into four evidence levels: confirmed by customer, inferred from conversation, external reference, and missing/needs confirmation.
+- When user input is thin, still produce a useful discovery report by documenting known facts, safe assumptions, missing decisions, and recommended questions. Do not pretend unknown details are confirmed.
+- For every major feature, include: requirement ID, priority, target role, user value, user story, acceptance criteria, main happy path, edge cases, data involved, dependencies, and open decisions.
+- Include a prioritized backlog view that a developer or PM can convert into tickets.
+- Include a traceability matrix linking business goals, actors, features, acceptance criteria, and open questions.
+- Include business rules in testable form, not vague prose.
+- Include non-functional requirements with measurable targets when the conversation supports them; otherwise provide recommended target ranges clearly marked as inferred.
+- Include risk register entries with likelihood, impact, mitigation, and owner/role.
+- Include at least one "what can be built now" section and one "what must be clarified before development" section.
+- Avoid filler paragraphs. Prefer dense tables, numbered workflows, and concrete decision points.
+- The final answer should usually be 1,500-3,000 words unless the conversation is extremely small.`;
+
 const OPTION_FALLBACKS = {
   vi: {
     'Project Overview': ['Quản lý nội bộ', 'Bán hàng hoặc đặt hàng', 'Đặt lịch hoặc dịch vụ', 'Khác'],
@@ -301,7 +315,32 @@ function normalizeQuestionOptions(rawOptions, currentTopic, message, context = {
 }
 
 function getReportLanguage(context = {}) {
-  return isVietnameseText(context.lastUserMessage) ? 'vi' : 'en';
+  return isVietnameseText(context.lastUserMessage) || isVietnameseText(context.conversationText) ? 'vi' : 'en';
+}
+
+function getReportQualityIssues(report = '') {
+  const issues = [];
+  const wordCount = (report.match(/\S+/g) || []).length;
+  const tableCount = (report.match(/\n\|/g) || []).length;
+  const headingCount = (report.match(/^##\s+/gm) || []).length;
+
+  if (wordCount < 900) issues.push('report is too short for a handoff-quality requirement document');
+  if (tableCount < 6) issues.push('report does not contain enough structured tables');
+  if (headingCount < 10) issues.push('report is missing several required sections');
+  if (!/acceptance criteria|ti[eế]u ch[ií].*ch[aấ]p nh[aậ]n/i.test(report)) {
+    issues.push('acceptance criteria are missing or too hard to find');
+  }
+  if (!/traceability|truy v[eế]t|li[eê]n k[eế]t/i.test(report)) {
+    issues.push('traceability matrix is missing');
+  }
+  if (!/backlog|user story|c[aâ]u chuy[eệ]n ng[uư][oờ]i d[uù]ng/i.test(report)) {
+    issues.push('backlog-ready user stories are missing');
+  }
+  if (!/risk|r[uủ]i ro/i.test(report)) {
+    issues.push('risk analysis is missing');
+  }
+
+  return issues;
 }
 
 function getRequirementReportTemplate(language) {
@@ -1317,11 +1356,12 @@ async function runRequirementGeneratorAgent(
   const referenceLabel = reportLanguage === 'vi' ? '[Tham khảo]' : '[Reference]';
   const template = getRequirementReportTemplate(reportLanguage);
 
-  return runTextAgent(openai, {
+  const draftReport = await runTextAgent(openai, {
     model,
     temperature: 0.25,
     system: `You are the Requirement Generator Agent.
 Create a professional Markdown requirements specification from the multi-agent analysis.
+${DETAILED_REPORT_POLICY}
 The report language is ${languageName}. All headings, table headers, labels, explanations, open questions, and recommendations must be in ${languageName}.
 Do not use English headings in a Vietnamese report. Do not mix languages except unavoidable acronyms such as API, MVP, KPI, CRM, GDPR.
 When using an acronym, briefly explain it in the report language the first time it appears.
@@ -1368,8 +1408,52 @@ Quality rules before returning:
 - External references must be marked as 🔎 **${referenceLabel}** and must stay separate from confirmed requirements.
 - If evidence is weak, say so clearly instead of making the report look complete.
 - Include at least 5 prioritized open questions unless the conversation is already complete.
+- Include a MoSCoW or priority table for MVP scope.
+- Include at least one backlog-ready table with columns for ID, user story, priority, acceptance criteria, dependencies, and status.
+- Include a traceability matrix that links goals, actors, features, and open questions.
+- Include edge cases and failure states for the main workflows.
+- Include measurable non-functional requirements or clearly marked inferred target ranges.
+- Include "ready to build now" and "needs clarification before build" lists.
+- Before returning, self-check that the report is not superficial. If a section has little data, fill it with explicit assumptions, risks, and questions instead of leaving it short.
 - Return Markdown only. Do not wrap the report in JSON.
 `,
+  });
+
+  const qualityIssues = getReportQualityIssues(draftReport);
+  if (qualityIssues.length === 0) return draftReport;
+
+  return runTextAgent(openai, {
+    model,
+    temperature: 0.2,
+    system: `You are a senior BA document editor.
+Rewrite the draft into a deeper, implementation-ready requirements report.
+Keep the report language as ${languageName}.
+Return Markdown only.
+Do not remove any confirmed facts.
+Do not invent unsupported details; mark assumptions and inferred items clearly.
+Fix these quality issues:
+${qualityIssues.map(issue => `- ${issue}`).join('\n')}
+
+${DETAILED_REPORT_POLICY}`,
+    user: `Original multi-agent context:
+
+Conversation:
+${context.conversationText}
+
+Requirement Analysis Agent output:
+${JSON.stringify(analysis, null, 2)}
+
+Research Agent output:
+${JSON.stringify(research, null, 2)}
+
+Business Document Search Agent output:
+${JSON.stringify(businessDocuments, null, 2)}
+
+Gap Analysis Agent output:
+${JSON.stringify(gapAnalysis, null, 2)}
+
+Draft report to improve:
+${draftReport}`,
   });
 }
 

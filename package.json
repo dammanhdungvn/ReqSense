@@ -7,7 +7,7 @@
     "server"
   ],
   "scripts": {
-    "build": "npm --workspace client run build",
+    "build": "npm --prefix client ci --include=dev --include=optional && npm --workspace client run build",
     "start": "npm --workspace server start"
   },
   "engines": {

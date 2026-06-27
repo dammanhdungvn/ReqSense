@@ -1,0 +1,124 @@
+.chat-message {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-message.user {
+  flex-direction: row-reverse;
+}
+
+.msg-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 82%;
+}
+
+.chat-message.user .msg-content {
+  align-items: flex-end;
+}
+
+.topic-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.1);
+  border: 1px solid rgba(88, 166, 255, 0.25);
+  border-radius: 20px;
+  padding: 2px 8px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.bubble-model {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-top-left-radius: 4px;
+  color: var(--text-primary);
+}
+
+.bubble-model p {
+  margin-bottom: 6px;
+}
+
+.bubble-model p:last-child {
+  margin-bottom: 0;
+}
+
+.bubble-model strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.bubble-model ul,
+.bubble-model ol {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.bubble-model li {
+  margin-bottom: 3px;
+}
+
+.bubble-user {
+  background: var(--accent);
+  color: var(--bg-base);
+  border-top-right-radius: 4px;
+  font-weight: 500;
+}
+
+.user-avatar {
+  width: 26px !important;
+  height: 26px !important;
+  border-radius: 50%;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Badges inside model messages */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+}
+
+.badge-confirmed {
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(63, 185, 80, 0.3);
+}
+
+.badge-inferred {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(210, 153, 34, 0.3);
+}
